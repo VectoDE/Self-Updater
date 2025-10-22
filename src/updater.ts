@@ -49,6 +49,8 @@ export class UpdateManager {
                 this.config.repo.branch,
                 "--single-branch",
                 ...(this.config.workspace.shallowClone ? ["--depth", "1"] : []),
+                "--origin",
+                this.config.repo.remote,
             ]);
         }
     }
