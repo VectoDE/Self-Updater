@@ -1,107 +1,164 @@
-# 🚀 Self-Updater
+# 🚀 Self-Updater 2.0
 
-An automatic **GitHub/GitLab-based updater** for your PM2 or Docker services.
-It monitors your repository’s main branch and automatically pulls new commits and restarts your service.
+Enterprise-grade GitOps automation for PM2, Docker, and custom service stacks. The self-updater monitors a Git repository, deploys new commits with zero-downtime safe guards, and restarts your runtime using hardened operational workflows.
 
-## ✨ Features
+## ✨ Highlights
 
-- 🔁 Watches GitHub or GitLab repositories
-- ⚙️ Supports both **PM2** and **Docker**
-- 🕐 Configurable check interval
-- 🧩 Easy CLI setup (`self-updater init`)
-- 🧠 Runs continuously and self-manages
+- 🔐 **Production-ready configuration** with schema validation, hooks, jitter control, and optional API tokens.
+- 📦 **Repository lifecycle management** – automatic cloning, fetch, reset, and dependency installation when `package.json` changes.
+- 🧭 **Multi-platform restarts** supporting PM2, Docker, Docker Compose, and arbitrary commands.
+- 🛰️ **Robust watcher** using GitHub/GitLab APIs with ETag caching and git fallback for air‑gapped environments.
+- 🧾 **Structured logging** with optional file output and persistent deployment state tracking.
+- 🛠️ **Operational tooling**: `run-once`, `status`, `validate`, PM2 ecosystem config, and container image.
 
-## 🧰 Installation
+## 📦 Installation
 
 ```bash
 npm install -g self-updater
 ```
 
-## ⚙️ CLI Commands
-**1️⃣ Initialize Configuration**
+> **Note:** The CLI reads environment variables from a local `.env` file (if present) before loading configuration.
+
+## ⚙️ Configuration
+
+Initialize an enterprise configuration interactively via CLI:
 
 ```bash
 self-updater init \
-  --repo https://github.com/youruser/yourrepo.git \
+  --repo https://github.com/your-org/your-service.git \
   --branch main \
-  --path /var/www/app \
+  --path /srv/your-service \
   --type pm2 \
-  --name my-service \
-  --interval 60
+  --name your-service \
+  --interval 120 \
+  --jitter 30 \
+  --auto-install \
+  --pre "npm run migrate" \
+  --post "npm run health-check" \
+  --log-level info
 ```
 
-| Option      | Description                                              |
-|-------------|----------------------------------------------------------|
-| ```--repo```      | GitHub or GitLab repository URL                          |
-| ```--branch```    | Branch to watch (default: ```main```)                          |
-| ```--path```      | Local path where the repository is located               |
-| ```--type```      | ```pm2``` or ```docker```                                            |
-| ```--name```      | Name of your PM2 or Docker instance                      |
-| ```--interval```  | Interval in seconds between checks (default: ```60```)         |
+This produces `updater.config.json` (overridable via `SELF_UPDATER_CONFIG`). Example:
 
-A configuration file ```updater.config.json``` will be created.
+```json
+{
+  "version": 2,
+  "repo": {
+    "url": "https://github.com/your-org/your-service.git",
+    "branch": "main",
+    "remote": "origin",
+    "authToken": "${GITHUB_TOKEN}"
+  },
+  "workspace": {
+    "localPath": "/srv/your-service",
+    "autoInstall": true,
+    "installCommand": "npm ci"
+  },
+  "service": {
+    "type": "pm2",
+    "name": "your-service"
+  },
+  "schedule": {
+    "intervalSeconds": 120,
+    "jitterSeconds": 30
+  },
+  "hooks": {
+    "preUpdate": "npm run migrate",
+    "postUpdate": "npm run health-check"
+  },
+  "logging": {
+    "level": "info",
+    "file": "/var/log/self-updater/agent.log"
+  }
+}
+```
 
-**2️⃣ Start the Updater**
+### Supported service targets
+
+| Type     | Behaviour                                                                                           |
+|----------|------------------------------------------------------------------------------------------------------|
+| `pm2`    | Runs `pm2 reload <name>` unless `restartCommand` is provided.                                        |
+| `docker` | Runs `docker restart <name>` or `docker compose [-f file] restart <service>` when `dockerCompose` is enabled. |
+| `command`| Executes a fully custom `restartCommand` (required).                                                 |
+
+### Hooks & automation
+
+- `preUpdate` executes inside the workspace **before** the git reset.
+- `postUpdate` runs **after** service restart for smoke tests or cache warmups.
+- `autoInstall` triggers dependency installs when lock files change (`package.json`, `package-lock.json`, `yarn.lock`, `pnpm-lock.yaml`).
+
+### Logging & state
+
+- Log level: `error`, `warn`, `info`, or `debug` (default `info`).
+- Optional `logging.file` enables structured log files with automatic directory creation.
+- Deployment state persists in `updater.state.json` alongside the config for auditability.
+
+## 🧰 CLI Commands
+
+| Command | Description |
+|---------|-------------|
+| `self-updater init` | Create or update `updater.config.json`. |
+| `self-updater start [--immediate]` | Start the continuous watcher loop (suitable for PM2/systemd). |
+| `self-updater run-once` | Perform a single update cycle and exit (CI/CD or cron). |
+| `self-updater status` | Display local vs remote commit along with the last deployment timestamp. |
+| `self-updater validate` | Lint the configuration and exit non-zero on failure. |
+
+## 🏃 Runtime options
+
+Environment variables override defaults at runtime:
+
+- `SELF_UPDATER_CONFIG` – absolute path to the config file (default: `<cwd>/updater.config.json`).
+- `SELF_UPDATER_LOG_LEVEL` – force log level without rewriting the config.
+
+A `.env` file placed next to the binary will be loaded prior to reading configuration, ideal for injecting tokens (e.g., `GITHUB_TOKEN`).
+
+## ☸️ Container deployment
+
+A hardened multi-stage Dockerfile is included. Build and run:
 
 ```bash
-self-updater start
+docker build -t self-updater .
+docker run -d \
+  --name self-updater \
+  -v /srv/self-updater/config:/config \
+  -v /srv/your-service:/srv/your-service \
+  self-updater
 ```
 
-The updater will:
-1. Check your repository regularly.
-2. Detect new commits.
-3. Pull changes into your local path.
-4. Restart your PM2 or Docker service automatically.
+Place your `updater.config.json` inside `/srv/self-updater/config`. The container entrypoint executes `node bin/cli.js start --immediate`.
 
-## 🔍 Example Output
+## ♻️ PM2 integration
+
+Use the supplied `ecosystem.config.cjs` template:
+
 ```bash
-🔍 Watching https://github.com/youruser/yourrepo.git [main]...
-📥 New commit detected → Updating and restarting service!
-PM2 restarted: [my-service]
+pm2 start ecosystem.config.cjs
+pm2 save
+pm2 status self-updater
 ```
 
-## 🧱 Project Structure
+Logs default to `./logs/out.log` and `./logs/error.log`; customize paths as needed.
 
-```python
-self-updater/
-├── bin/
-│   └── cli.js
-├── src/
-│   ├── config.ts
-│   ├── watcher.ts
-│   ├── updater.ts
-│   └── index.ts
-├── scripts/
-│   └── set-exec.js
-├── package.json
-├── tsconfig.json
-└── README.md
-```
+## 🛡️ Operational guarantees
 
-## 🧩 Build
+- File-lock based concurrency guard prevents overlapping deployments.
+- Git operations use safe `fetch + hard reset` to ensure clean trees.
+- Automatic fallback to `git ls-remote` when API quota or connectivity issues occur.
+- Dependency install and hook execution are fully logged for traceability.
+
+## 🧪 Development
 
 ```bash
 npm install
 npm run build
-```
-
-Then test locally:
-
-```bash
 npm link
 self-updater --help
 ```
 
-## 🚀 Publish to npm
-```bash
-npm login
-npm run build
-npm publish --access public
-```
+## 📄 License
 
-## 🧠 License
 Apache 2.0 License © 2025 VectoDE
 
 ## 💬 Support
-Open an issue or feature request at
-👉 https://github.com/VectoDE/self-updater/issues
+
+Open an issue or feature request at [github.com/VectoDE/self-updater/issues](https://github.com/VectoDE/self-updater/issues)

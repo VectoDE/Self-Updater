@@ -1,6 +1,6 @@
 {
     "name": "self-updater",
-    "version": "1.0.1",
+    "version": "2.0.0",
     "description": "Automatic GitHub/GitLab-based updater for PM2 or Docker services",
     "repository": {
         "type": "git",
