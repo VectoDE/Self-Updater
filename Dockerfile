@@ -25,8 +25,7 @@ ENV CGO_ENABLED=0 GOFLAGS=-trimpath GOTOOLCHAIN=local
 RUN go mod download -json "github.com/docker/compose/v5@$COMPOSE_VERSION" > /tmp/module.json \
     && dir="$(sed -n 's/^[[:space:]]*"Dir": "\(.*\)",$/\1/p' /tmp/module.json)" \
     && test -n "$dir" \
-    && cd "$dir" \
-    && GOOS=$TARGETOS GOARCH=$TARGETARCH go build -mod=readonly \
+    && GOOS=$TARGETOS GOARCH=$TARGETARCH go -C "$dir" build -mod=readonly \
       -ldflags "-w -X github.com/docker/compose/v5/internal.Version=$COMPOSE_VERSION" \
       -o /out/docker-compose ./cmd
 
