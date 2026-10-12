@@ -9,6 +9,8 @@ export interface RunOptions {
   timeoutSeconds?: number;
   /** Text passed to the process on standard input. */
   input?: string;
+  /** Name for the command in error messages, instead of its text (which may hold credentials). */
+  label?: string;
 }
 
 export interface RunResult {
@@ -112,7 +114,10 @@ export const runChecked = async (
   if (result.code !== 0) {
     const output = (result.stderr || result.stdout).trim().split('\n').slice(-20).join('\n');
     const detail = output ? `: ${output}` : '';
-    throw new SelfUpdaterError('COMMAND_FAILED', `${describeCommand(command)} exited with ${result.code}${detail}`);
+    throw new SelfUpdaterError(
+      'COMMAND_FAILED',
+      `${options.label ?? describeCommand(command)} exited with ${result.code}${detail}`
+    );
   }
   return result;
 };

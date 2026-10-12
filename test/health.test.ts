@@ -45,6 +45,28 @@ describe('checkHealth', () => {
     );
   });
 
+  it('leaves credentials and the query string out of the reason', async () => {
+    const server = await startServer((_, response) => response.writeHead(500).end());
+    const url = `${server.url}/health?token=s3cr3t-value`;
+    await expect(checkHealth(check({ url, retries: 0 }), { cwd: tempDir() })).rejects.toSatisfy(
+      (error) =>
+        error instanceof Error &&
+        error.message.includes(`${server.url}/health answered 500`) &&
+        !error.message.includes('s3cr3t')
+    );
+    // fetch quotes the whole URL in some errors.
+    const failing = (): Promise<Response> => Promise.reject(new Error(`cannot reach ${url}`));
+    await expect(checkHealth(check({ url, retries: 0 }), { cwd: tempDir(), fetch: failing })).rejects.toSatisfy(
+      (error) => error instanceof Error && !error.message.includes('s3cr3t')
+    );
+  });
+
+  it('names an unparsable URL without quoting it', async () => {
+    await expect(checkHealth(check({ url: 'not a url', retries: 0 }), { cwd: tempDir() })).rejects.toThrow(
+      /^Health check failed 1 times: the health URL did not answer/
+    );
+  });
+
   it('reports a URL that does not answer', async () => {
     await expect(checkHealth(check({ url: 'http://127.0.0.1:1/', retries: 0 }), { cwd: tempDir() })).rejects.toThrow(
       /did not answer/

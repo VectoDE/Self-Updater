@@ -13,6 +13,16 @@ export interface HealthCheckOptions {
   wait?: (seconds: number) => Promise<void>;
 }
 
+/** The URL without credentials and query string for messages: both may carry a token. */
+const shown = (url: string): string => {
+  try {
+    const parsed = new URL(url);
+    return `${parsed.origin}${parsed.pathname}`;
+  } catch {
+    return 'the health URL';
+  }
+};
+
 const attempt = async (check: HealthCheckConfig, options: HealthCheckOptions): Promise<string | undefined> => {
   if (check.url) {
     try {
@@ -24,10 +34,11 @@ const attempt = async (check: HealthCheckConfig, options: HealthCheckOptions): P
       // Read and drop the body so the connection is released.
       await response.arrayBuffer().catch(() => undefined);
       if (response.status !== check.expectStatus) {
-        return `${check.url} answered ${response.status}, expected ${check.expectStatus}`;
+        return `${shown(check.url)} answered ${response.status}, expected ${check.expectStatus}`;
       }
     } catch (error) {
-      return `${check.url} did not answer: ${messageOf(error)}`;
+      // Some errors quote the full URL; keep only the shown part.
+      return `${shown(check.url)} did not answer: ${messageOf(error).replaceAll(check.url, shown(check.url))}`;
     }
   }
   if (check.command) {

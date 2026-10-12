@@ -168,6 +168,9 @@ describe('parseConfig', () => {
   it('needs a target for the health check', () => {
     expect(paths({ ...minimal, healthCheck: {} })).toEqual(['healthCheck']);
     expect(paths({ ...minimal, healthCheck: { url: 'localhost:3000' } })).toEqual(['healthCheck.url']);
+    expect(paths({ ...minimal, healthCheck: { url: 'https://user:pw@example.com/health' } })).toEqual([
+      'healthCheck.url',
+    ]);
   });
 });
 

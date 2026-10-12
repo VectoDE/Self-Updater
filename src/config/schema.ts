@@ -378,6 +378,9 @@ const readHealthCheck = (r: Reader): HealthCheckConfig | undefined => {
   if (url !== undefined) {
     if (!isHttpUrl(url)) {
       r.issue('healthCheck.url', 'must be an http or https URL');
+    } else if (new URL(url).username !== '' || new URL(url).password !== '') {
+      // fetch refuses such URLs, and the credentials would end up in error messages.
+      r.issue('healthCheck.url', 'must not contain a user name or password');
     }
     check.url = url;
   }

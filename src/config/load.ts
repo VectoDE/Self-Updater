@@ -14,7 +14,7 @@ export const resolveConfigPath = (file?: string, env: NodeJS.ProcessEnv = proces
 /** The state file lives next to the configuration. */
 export const statePathFor = (configPath: string): string => path.join(path.dirname(configPath), 'updater.state.json');
 
-const VARIABLE = /\$\{([A-Z_][A-Z\d_]*)(?::-([^}]*))?\}/gi;
+const VARIABLE = /\$\{([A-Z_][A-Z\d_]*)(?::-([^$}]*))?\}/gi;
 
 /**
  * Replaces ${NAME} and ${NAME:-default} in every string, so tokens and secrets can stay in the environment. A

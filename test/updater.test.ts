@@ -1,4 +1,4 @@
-import { existsSync, readFileSync, unlinkSync, writeFileSync } from 'node:fs';
+import { readFileSync, unlinkSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { describe, expect, it } from 'vitest';
 import type { UpdaterConfigInput } from '../src/config/schema.js';
@@ -40,7 +40,12 @@ const setup = (overrides: Partial<UpdaterConfigInput> = {}) => {
   const updater = new Updater(config, { statePath, logger, wait: () => Promise.resolve() });
   const log = (): string[] => {
     const file = path.join(scripts, 'log.txt');
-    const lines = existsSync(file) ? readFileSync(file, 'utf8').trim().split('\n') : [];
+    let lines: string[] = [];
+    try {
+      lines = readFileSync(file, 'utf8').trim().split('\n');
+    } catch {
+      // No step has run yet, so there is no log.
+    }
     writeFileSync(file, '');
     return lines.filter(Boolean);
   };
@@ -82,7 +87,7 @@ describe('Updater.update', () => {
   });
 
   it('cancels the update when the pre-update hook fails, without touching the checkout', async () => {
-    const { remote, updater, workspace, log, failStep } = setup();
+    const { remote, updater, workspace, scripts, log, failStep, records } = setup();
     const v1 = remote.head();
     await updater.update();
     log();
@@ -90,7 +95,9 @@ describe('Updater.update', () => {
     failStep('pre');
     const result = await updater.update();
     expect(result).toMatchObject({ outcome: 'failed', commit: v1, previousCommit: v1 });
-    expect(result.error).toMatch(/^pre-update hook: .*exited with 3/);
+    // The command text is the operator's and may hold credentials, so only its role is reported.
+    expect(result.error).toMatch(/^pre-update hook: preUpdate hook exited with 3/);
+    expect(JSON.stringify(records)).not.toContain(path.basename(scripts));
     expect(git(workspace, 'rev-parse', 'HEAD')).toBe(v1);
     expect(log()).toEqual(['pre 1']);
     expect(updater.readState().failedCommit).toBe(v2);

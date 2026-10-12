@@ -21,7 +21,8 @@ The package is now `@vectode/self-updater`. It was rewritten in TypeScript and h
 - Service types `systemd` and `compose` (Docker Compose `up --build`), optional `sudo -n` for built-in restarts.
 - Commands `rollback` and `migrate`; `update --dry-run`; `--json` output; exit code 3 after a rollback.
 - Lock file, so two updaters never deploy into the same workspace at once.
-- JSON log format; secrets are hidden in every log line.
+- JSON log format; secrets are hidden in every log line. Hooks, the install command and custom restarts appear in
+  logs and errors by their role only, because their text may contain credentials.
 - `@vectode/self-updater/config`: the configuration format without Node.js APIs, used by the new
   [configuration builder](https://vectode.github.io/Self-Updater/).
 - Container image `ghcr.io/vectode/self-updater` for amd64 and arm64, running as a non-root user.

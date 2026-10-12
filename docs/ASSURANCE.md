@@ -67,19 +67,19 @@ deployed repository is trusted in the same way; protecting its branch is the job
 
 ## Common weaknesses countered
 
-| Weakness                                   | Countermeasure                                                                                                               |
-| ------------------------------------------ | ---------------------------------------------------------------------------------------------------------------------------- |
-| CWE-78 OS command injection                | Git and built-in restarts are argument lists without a shell; names are validated; only operator commands use the shell      |
-| CWE-88 argument injection                  | Refs are passed after `--` or as full refspecs; URLs starting with `-` are rejected                                          |
-| CWE-532 secrets in log files               | The logger replaces every configured secret, also in JSON-escaped form; property-based tests try arbitrary secrets           |
-| CWE-214 secrets in process arguments       | The token travels through `GIT_CONFIG_*` environment variables, never in argv or the remote URL                              |
-| CWE-345 insufficient verification          | `git verify-commit` / `verify-tag` with an allowed signers file before checkout                                              |
-| CWE-290 / CWE-208 webhook spoofing, timing | HMAC-SHA256 or token compared with `timingSafeEqual`                                                                         |
-| CWE-400 resource exhaustion                | 1 MB body limit, request and header timeouts, one running cycle with coalesced triggers, output caps, time limits            |
-| CWE-362 race conditions                    | Exclusive lock file created with `wx`, owner check before release, stale locks only taken over once                          |
-| CWE-732 permissions                        | Configuration and state are written with mode 0600 through a temporary file and an atomic rename                             |
-| CWE-1357 untrusted components              | Zero runtime dependencies; dev dependencies pinned in the lockfile, scanned by Dependabot, OSV-Scanner and dependency review |
-| CWE-494 download without integrity         | Releases are built in GitHub Actions and published with signed SLSA provenance and GitHub attestations                       |
+| Weakness                                   | Countermeasure                                                                                                                                                          |
+| ------------------------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| CWE-78 OS command injection                | Git and built-in restarts are argument lists without a shell; names are validated; only operator commands use the shell                                                 |
+| CWE-88 argument injection                  | Refs are passed after `--` or as full refspecs; URLs starting with `-` are rejected                                                                                     |
+| CWE-532 secrets in log files               | The logger replaces every configured secret, also in JSON-escaped form; operator commands are named by role, not their text, and health URLs lose query and credentials |
+| CWE-214 secrets in process arguments       | The token travels through `GIT_CONFIG_*` environment variables, never in argv or the remote URL                                                                         |
+| CWE-345 insufficient verification          | `git verify-commit` / `verify-tag` with an allowed signers file before checkout                                                                                         |
+| CWE-290 / CWE-208 webhook spoofing, timing | HMAC-SHA256 or token compared with `timingSafeEqual`                                                                                                                    |
+| CWE-400 resource exhaustion                | 1 MB body limit, request and header timeouts, one running cycle with coalesced triggers, output caps, time limits                                                       |
+| CWE-362 race conditions                    | Exclusive lock file created with `wx`, owner check before release, stale locks only taken over once                                                                     |
+| CWE-732 permissions                        | Configuration and state are written with mode 0600 through a temporary file and an atomic rename                                                                        |
+| CWE-1357 untrusted components              | Zero runtime dependencies; dev dependencies pinned in the lockfile, scanned by Dependabot, OSV-Scanner and dependency review                                            |
+| CWE-494 download without integrity         | Releases are built in GitHub Actions and published with signed SLSA provenance and GitHub attestations                                                                  |
 
 ## Evidence
 

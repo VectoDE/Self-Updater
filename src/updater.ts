@@ -232,8 +232,8 @@ export class Updater {
         return;
       }
     }
-    this.logger.info('Installing dependencies', { command: install.command });
-    await this.runLogged(install.command);
+    this.logger.info('Installing dependencies');
+    await this.runLogged(install.command, 'install command');
   }
 
   private async restart(): Promise<void> {
@@ -241,8 +241,10 @@ export class Updater {
     if (!command) {
       return;
     }
-    this.logger.info('Restarting service', { command: describeCommand(command) });
-    await this.runLogged(command);
+    // Built-in restarts are argument lists made from validated names; a custom command is the operator's text.
+    const label = typeof command === 'string' ? 'restart command' : describeCommand(command);
+    this.logger.info('Restarting service', { command: label });
+    await this.runLogged(command, label);
   }
 
   private async hook(name: 'preUpdate' | 'postUpdate'): Promise<void> {
@@ -250,15 +252,20 @@ export class Updater {
     if (!command) {
       return;
     }
-    this.logger.info(`Running ${name} hook`, { command });
-    await this.runLogged(command);
+    this.logger.info(`Running ${name} hook`);
+    await this.runLogged(command, `${name} hook`);
   }
 
-  private async runLogged(command: string | [string, ...string[]]): Promise<void> {
-    const result = await runChecked(command, { cwd: this.git.dir, timeoutSeconds: this.config.hooks.timeoutSeconds });
+  /** Operator commands appear in logs and errors by their label only: their text may hold credentials. */
+  private async runLogged(command: string | [string, ...string[]], label: string): Promise<void> {
+    const result = await runChecked(command, {
+      cwd: this.git.dir,
+      timeoutSeconds: this.config.hooks.timeoutSeconds,
+      label,
+    });
     const output = `${result.stdout}\n${result.stderr}`.trim();
     if (output) {
-      this.logger.debug('Command output', { command: describeCommand(command), output: output.slice(-4000) });
+      this.logger.debug('Command output', { command: label, output: output.slice(-4000) });
     }
   }
 
