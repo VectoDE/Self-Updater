@@ -5,6 +5,8 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+## [4.0.0] - 2026-10-12
+
 The package is now `@vectode/self-updater`. It was rewritten in TypeScript and has no runtime dependencies. Run
 `self-updater migrate` to convert an existing configuration; the README lists everything that changed.
 
@@ -67,7 +69,8 @@ with Git fallback, Docker Compose, hooks, `run-once`, `status` and `validate`. N
 
 First release as `self-updater`.
 
-[Unreleased]: https://github.com/VectoDE/Self-Updater/compare/v1.0.1...HEAD
+[Unreleased]: https://github.com/VectoDE/Self-Updater/compare/v4.0.0...HEAD
+[4.0.0]: https://github.com/VectoDE/Self-Updater/compare/v1.0.1...v4.0.0
 [3.0.0]: https://www.npmjs.com/package/self-updater/v/3.0.0
 [1.0.1]: https://github.com/VectoDE/Self-Updater/compare/v1.0.0...v1.0.1
 [1.0.0]: https://github.com/VectoDE/Self-Updater/releases/tag/v1.0.0
