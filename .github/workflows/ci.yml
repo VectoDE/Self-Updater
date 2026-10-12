@@ -166,6 +166,7 @@ jobs:
           scan-args: |-
             scan
             image
+            --config=docker/compose/osv-scanner.toml
             --archive
             ./image.tar
 

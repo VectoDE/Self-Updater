@@ -7,3 +7,5 @@
 !LICENSE
 !CHANGELOG.md
 !src/
+!docker/compose/go.mod
+!docker/compose/go.sum

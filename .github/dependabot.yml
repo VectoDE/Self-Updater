@@ -36,3 +36,14 @@ updates:
       interval: weekly
       day: monday
     labels: [dependencies, docker]
+
+  # Compose for the container image, built from source with these versions.
+  - package-ecosystem: gomod
+    directory: /docker/compose
+    schedule:
+      interval: weekly
+      day: monday
+    labels: [dependencies, docker]
+    groups:
+      compose:
+        patterns: ['*']

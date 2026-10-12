@@ -13,21 +13,20 @@ COPY tsconfig.json tsdown.config.ts README.md LICENSE CHANGELOG.md ./
 COPY src ./src
 RUN npm run build && npm pack --ignore-scripts --pack-destination /tmp
 
-# Docker Compose built from source with the current Go release: the published binaries and the Alpine package still
-# carry a Go standard library with known vulnerabilities. Cross-compiled on the build platform, so arm64 builds fast.
+# Docker Compose built from source with the current Go release and dependency fixes: the published binaries and the
+# Alpine package carry known vulnerabilities. Cross-compiled on the build platform, so arm64 builds fast.
 FROM --platform=$BUILDPLATFORM golang:1.26.9-alpine3.24@sha256:3082400e369fa24d5fc60bca20edab3f6d604e0c5a690ec66b295eff4dd87ade AS compose
 ARG TARGETOS
 ARG TARGETARCH
-ARG COMPOSE_VERSION=v5.6.0
 ENV CGO_ENABLED=0 GOFLAGS=-trimpath GOTOOLCHAIN=local
-# go mod download checks the module against the Go checksum database. Compose's go.mod has exclude directives, which
-# go install refuses, so it is built inside the downloaded module with its own go.sum.
-RUN go mod download -json "github.com/docker/compose/v5@$COMPOSE_VERSION" > /tmp/module.json \
-    && dir="$(sed -n 's/^[[:space:]]*"Dir": "\(.*\)",$/\1/p' /tmp/module.json)" \
-    && test -n "$dir" \
-    && GOOS=$TARGETOS GOARCH=$TARGETARCH go -C "$dir" build -mod=readonly \
-      -ldflags "-w -X github.com/docker/compose/v5/internal.Version=$COMPOSE_VERSION" \
-      -o /out/docker-compose ./cmd
+WORKDIR /src
+# docker/compose/go.mod pins Compose and newer fixes of its dependencies; go.sum makes the build check every module.
+# Dependabot keeps both current.
+COPY docker/compose/go.mod docker/compose/go.sum ./
+RUN version="$(go list -m -f '{{.Version}}' github.com/docker/compose/v5)" \
+    && GOOS=$TARGETOS GOARCH=$TARGETARCH go build -mod=readonly \
+      -ldflags "-w -X github.com/docker/compose/v5/internal.Version=$version" \
+      -o /out/docker-compose github.com/docker/compose/v5/cmd
 
 # The Docker CLI from the official image, which is rebuilt with each Go release.
 FROM docker:29.9.0-cli-alpine3.24@sha256:1a4c7cb63513f349bdad01fcc6e0f3f2f67d37b9da86f14dc0d4a0942eecda00 AS docker-cli

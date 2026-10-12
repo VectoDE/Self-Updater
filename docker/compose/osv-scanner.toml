@@ -1,0 +1,9 @@
+# Findings in the Compose build that do not apply, each with the evidence. Remove an entry when it no longer matches.
+
+[[IgnoredVulns]]
+id = "GO-2026-5932"
+ignoreUntil = 2027-04-13
+reason = """
+golang.org/x/crypto/openpgp is deprecated as a whole and has no fixed version. Compose does not import it: the binary
+contains no openpgp symbols, and govulncheck -mode binary reports that no vulnerable code is called.
+"""

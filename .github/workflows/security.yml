@@ -51,6 +51,7 @@ jobs:
         with:
           scan-args: |-
             --lockfile=package-lock.json
+            --lockfile=docker/compose/go.mod
 
   secrets:
     name: Secret scan
