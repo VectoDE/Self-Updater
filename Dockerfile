@@ -15,7 +15,7 @@ RUN npm run build && npm pack --ignore-scripts --pack-destination /tmp
 
 # Docker Compose built from source with the current Go release and dependency fixes: the published binaries and the
 # Alpine package carry known vulnerabilities. Cross-compiled on the build platform, so arm64 builds fast.
-FROM --platform=$BUILDPLATFORM golang:1.26.9-alpine3.24@sha256:3082400e369fa24d5fc60bca20edab3f6d604e0c5a690ec66b295eff4dd87ade AS compose
+FROM --platform=$BUILDPLATFORM golang:1.27.0-alpine3.24@sha256:4c9fe60190a2a3350ddc51de80d0224b8a6698d12bdfc999fee45ea9d6c46dbc AS compose
 ARG TARGETOS
 ARG TARGETARCH
 ENV CGO_ENABLED=0 GOFLAGS=-trimpath GOTOOLCHAIN=local
