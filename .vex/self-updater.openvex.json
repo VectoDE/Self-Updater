@@ -1,0 +1,26 @@
+{
+  "@context": "https://openvex.dev/ns/v0.2.0",
+  "@id": "https://github.com/VectoDE/Self-Updater/blob/main/.vex/self-updater.openvex.json",
+  "author": "VectoDE",
+  "role": "Maintainer",
+  "timestamp": "2026-10-13T00:00:00Z",
+  "version": 1,
+  "statements": [
+    {
+      "vulnerability": {
+        "@id": "https://osv.dev/vulnerability/GO-2026-5932",
+        "name": "GO-2026-5932",
+        "description": "golang.org/x/crypto/openpgp is unmaintained and unsafe by design"
+      },
+      "products": [
+        {
+          "@id": "pkg:oci/self-updater?repository_url=ghcr.io/vectode/self-updater",
+          "subcomponents": [{ "@id": "pkg:golang/golang.org/x/crypto@v0.58.0" }]
+        }
+      ],
+      "status": "not_affected",
+      "justification": "vulnerable_code_not_present",
+      "impact_statement": "Docker Compose in the container image requires golang.org/x/crypto, but does not import the openpgp packages: the binary contains no openpgp symbols, and govulncheck -mode binary, run on every CI build, finds no called vulnerable code."
+    }
+  ]
+}

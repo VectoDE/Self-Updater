@@ -1,0 +1,21 @@
+{
+  "version": 3,
+  "repo": { "url": "https://gitlab.com/acme/worker.git", "token": "${GITLAB_TOKEN}" },
+  "track": {
+    "mode": "tag",
+    "tagPattern": "v*",
+    "requireSignature": true,
+    "allowedSigners": "/etc/self-updater/allowed_signers"
+  },
+  "workspace": {
+    "path": "/opt/worker",
+    "install": { "enabled": true, "command": "npm ci --omit=dev", "when": "changed" }
+  },
+  "service": { "type": "systemd", "name": "worker.service", "sudo": true },
+  "healthCheck": { "command": "systemctl is-active --quiet worker.service", "retries": 3 },
+  "schedule": { "intervalSeconds": 300 },
+  "notifications": [
+    { "type": "webhook", "url": "${DEPLOY_WEBHOOK_URL}", "events": ["success", "failure", "rollback"] }
+  ],
+  "logging": { "file": "/var/log/self-updater/worker.log" }
+}

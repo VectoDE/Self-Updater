@@ -1,124 +1,131 @@
-import fs from "fs";
-import path from "path";
+import { appendFileSync, mkdirSync } from 'node:fs';
+import path from 'node:path';
+import type { LogFormat, LogLevel } from './config/schema.js';
 
-export type LogLevel = "error" | "warn" | "info" | "debug";
+const WEIGHT: Record<LogLevel, number> = { error: 0, warn: 1, info: 2, debug: 3 };
 
-const levelWeights: Record<LogLevel, number> = {
-    error: 0,
-    warn: 1,
-    info: 2,
-    debug: 3,
-};
+export type LogFields = Record<string, unknown>;
+
+export interface LogRecord {
+  time: string;
+  level: LogLevel;
+  message: string;
+  fields: LogFields;
+}
 
 export interface LoggerOptions {
-    level?: LogLevel;
-    file?: string;
+  level?: LogLevel;
+  format?: LogFormat;
+  /** Append every line to this file as well. */
+  file?: string;
+  /** Values that must never appear in the output (tokens, secrets, webhook URLs). */
+  secrets?: readonly (string | undefined)[];
+  /** Where lines go; defaults to stderr for warnings and errors, stdout for the rest. */
+  write?: (line: string, level: LogLevel) => void;
 }
 
-interface LogPayload {
-    message: string;
-    context?: Record<string, unknown>;
-    error?: unknown;
-}
+const defaultWrite = (line: string, level: LogLevel) => {
+  if (level === 'error' || level === 'warn') {
+    process.stderr.write(`${line}\n`);
+  } else {
+    process.stdout.write(`${line}\n`);
+  }
+};
 
-function serialize(value: unknown): string {
-    if (value instanceof Error) {
-        return JSON.stringify({
-            message: value.message,
-            stack: value.stack,
-            name: value.name,
-        });
-    }
-
-    if (typeof value === "object") {
-        try {
-            return JSON.stringify(value);
-        } catch (err) {
-            return String(value);
-        }
-    }
-
+const text = (value: unknown): string => {
+  if (value instanceof Error) {
+    return value.message;
+  }
+  if (typeof value === 'string') {
+    return value;
+  }
+  // JSON.stringify returns undefined for these, despite its type.
+  if (typeof value === 'function' || typeof value === 'symbol' || value === undefined) {
     return String(value);
+  }
+  return JSON.stringify(value);
+};
+
+const hide = (value: string, secrets: readonly string[]): string =>
+  secrets.reduce((result, secret) => result.replaceAll(secret, '***'), value);
+
+export class Logger {
+  private readonly level: LogLevel;
+  private readonly format: LogFormat;
+  private readonly file: string | undefined;
+  private readonly write: (line: string, level: LogLevel) => void;
+  private readonly secrets: string[];
+  private readonly jsonSecrets: string[];
+
+  constructor(options: LoggerOptions = {}) {
+    this.level = options.level ?? 'info';
+    this.format = options.format ?? 'text';
+    this.write = options.write ?? defaultWrite;
+    // Longest first, so a secret that contains another is hidden as a whole.
+    this.secrets = (options.secrets ?? [])
+      .filter((secret): secret is string => typeof secret === 'string' && secret.length >= 4)
+      .sort((a, b) => b.length - a.length);
+    // In a JSON line a secret with quotes, backslashes or control characters appears in its escaped form.
+    this.jsonSecrets = this.secrets.map((secret) => JSON.stringify(secret).slice(1, -1));
+    this.file = options.file;
+    if (this.file) {
+      mkdirSync(path.dirname(this.file), { recursive: true });
+    }
+  }
+
+  /** Hides every known secret in a string. */
+  redact(value: string): string {
+    return hide(value, this.secrets);
+  }
+
+  enabled(level: LogLevel): boolean {
+    return WEIGHT[level] <= WEIGHT[this.level];
+  }
+
+  log(level: LogLevel, message: string, fields: LogFields = {}): void {
+    if (!this.enabled(level)) {
+      return;
+    }
+    const time = new Date().toISOString();
+    const entries = Object.entries(fields).filter(([, value]) => value !== undefined);
+    let line: string;
+    if (this.format === 'json') {
+      const record = Object.fromEntries(
+        entries.map(([key, value]) => [key, value instanceof Error ? value.message : value])
+      );
+      line = JSON.stringify({ time, level, message, ...record });
+    } else {
+      const details = entries.map(([key, value]) => `${key}=${text(value)}`).join(' ');
+      const suffix = details ? ` ${details}` : '';
+      line = `${time} ${level.toUpperCase().padEnd(5)} ${message}${suffix}`;
+    }
+    // Command output may span lines; one record stays one line so log shippers do not split it.
+    line = hide(line, this.format === 'json' ? this.jsonSecrets : this.secrets).replaceAll(
+      /\r?\n/g,
+      this.format === 'json' ? String.raw`\n` : ' | '
+    );
+    this.write(line, level);
+    if (this.file) {
+      appendFileSync(this.file, `${line}\n`);
+    }
+  }
+
+  error(message: string, fields?: LogFields): void {
+    this.log('error', message, fields);
+  }
+
+  warn(message: string, fields?: LogFields): void {
+    this.log('warn', message, fields);
+  }
+
+  info(message: string, fields?: LogFields): void {
+    this.log('info', message, fields);
+  }
+
+  debug(message: string, fields?: LogFields): void {
+    this.log('debug', message, fields);
+  }
 }
 
-class EnterpriseLogger {
-    private level: LogLevel = "info";
-    private file?: string;
-    private stream?: fs.WriteStream;
-
-    configure(options: LoggerOptions = {}) {
-        if (options.level) {
-            this.level = options.level;
-        }
-
-        if (options.file) {
-            this.configureFile(options.file);
-        }
-    }
-
-    private configureFile(file: string) {
-        this.file = path.resolve(file);
-        const directory = path.dirname(this.file);
-        fs.mkdirSync(directory, { recursive: true });
-        if (this.stream) {
-            this.stream.end();
-        }
-        this.stream = fs.createWriteStream(this.file, { flags: "a" });
-    }
-
-    private shouldLog(level: LogLevel) {
-        return levelWeights[level] <= levelWeights[this.level];
-    }
-
-    private write(level: LogLevel, payload: LogPayload) {
-        if (!this.shouldLog(level)) {
-            return;
-        }
-
-        const timestamp = new Date().toISOString();
-        const context = payload.context ? ` ${serialize(payload.context)}` : "";
-        const error = payload.error ? ` ${serialize(payload.error)}` : "";
-        const line = `[${timestamp}] [${level.toUpperCase()}] ${payload.message}${context}${error}`;
-
-        if (level === "error") {
-            // eslint-disable-next-line no-console
-            console.error(line);
-        } else if (level === "warn") {
-            // eslint-disable-next-line no-console
-            console.warn(line);
-        } else {
-            // eslint-disable-next-line no-console
-            console.log(line);
-        }
-
-        if (this.stream) {
-            this.stream.write(`${line}\n`);
-        }
-    }
-
-    error(message: string, meta?: Record<string, unknown> | Error, error?: unknown) {
-        if (meta instanceof Error) {
-            this.write("error", { message, error: meta });
-            return;
-        }
-        this.write("error", { message, context: meta, error });
-    }
-
-    warn(message: string, meta?: Record<string, unknown>) {
-        this.write("warn", { message, context: meta });
-    }
-
-    info(message: string, meta?: Record<string, unknown>) {
-        this.write("info", { message, context: meta });
-    }
-
-    debug(message: string, meta?: Record<string, unknown>) {
-        this.write("debug", { message, context: meta });
-    }
-}
-
-export const logger = new EnterpriseLogger();
-
-export function setLoggerOptions(options: LoggerOptions) {
-    logger.configure(options);
-}
+/** A logger that drops everything, for library use without output. */
+export const silentLogger = new Logger({ level: 'error', write: () => undefined });
