@@ -169,6 +169,19 @@ jobs:
             --config=docker/compose/osv-scanner.toml
             --archive
             ./image.tar
+      # Backs the ignores in docker/compose/osv-scanner.toml: no vulnerable function is reachable in the binaries.
+      - name: Reachable vulnerabilities in the Go binaries
+        run: |
+          container="$(docker create self-updater:ci)"
+          mkdir bin
+          docker cp "$container:/usr/local/bin/docker" bin/docker
+          docker cp "$container:/usr/local/libexec/docker/cli-plugins/docker-compose" bin/docker-compose
+          docker rm "$container"
+          image="$(sed -n 's/^FROM --platform=\$BUILDPLATFORM \(golang:[^ ]*\) AS compose$/\1/p' Dockerfile)"
+          for binary in docker docker-compose; do
+            docker run --rm -v "$PWD/bin:/bin-under-test:ro" "$image" \
+              go run golang.org/x/vuln/cmd/govulncheck@v1.3.0 -mode binary "/bin-under-test/$binary"
+          done
 
   site:
     name: Configuration builder
