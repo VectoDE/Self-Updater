@@ -10,11 +10,16 @@ import { Logger, type LogRecord } from '../src/logger.js';
 
 const cleanup: (() => void | Promise<void>)[] = [];
 
-afterEach(async () => {
-  for (const task of cleanup.splice(0).reverse()) {
+// One task after the other, newest first; recursion keeps await out of a loop.
+const runTasks = async (tasks: (() => void | Promise<void>)[]): Promise<void> => {
+  const [task, ...rest] = tasks;
+  if (task) {
     await task();
+    await runTasks(rest);
   }
-});
+};
+
+afterEach(() => runTasks(cleanup.splice(0).reverse()));
 
 /** A temporary directory that is removed after the test. */
 export const tempDir = (prefix = 'su-'): string => {
