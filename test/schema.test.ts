@@ -80,7 +80,7 @@ describe('parseConfig', () => {
       healthCheck: { url: 'http://localhost/health', command: 'true', expectStatus: 204, retries: 0 },
       rollback: { enabled: false },
       schedule: { enabled: false, intervalSeconds: 15, jitterSeconds: 5 },
-      webhook: { enabled: true, host: '0.0.0.0', port: 8080, path: '/deploy', secret: 's'.repeat(16) },
+      webhook: { enabled: true, host: '0.0.0.0', port: 8080, path: '/deploy', secret: 's'.repeat(32) },
       notifications: [{ type: 'slack', url: 'https://hooks.slack.com/x', events: ['failure'] }],
       logging: { level: 'debug', format: 'json', file: 'log/updater.log' },
     });

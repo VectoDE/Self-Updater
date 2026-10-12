@@ -47,6 +47,10 @@ The package is now `@vectode/self-updater`. It was rewritten in TypeScript and h
 - Releases are built by GitHub Actions and published with signed provenance to npm, as a GitHub release with build
   attestation and CycloneDX SBOM, to GitHub Packages and to the GitHub Container Registry.
 - Security policy, assurance case, OpenSSF Scorecard, CodeQL, dependency review, OSV-Scanner and secret scanning.
+- The container image ships the Docker CLI from the official image and Docker Compose built from source with current
+  Go and dependency fixes. One finding without a fix, GO-2026-5932, does not apply; see the
+  [OpenVEX statement](.vex/self-updater.openvex.json).
+- Webhook secrets need at least 32 characters, and GitLab tokens are compared without revealing their length.
 
 ## [3.0.0] - 2025-10-22
 

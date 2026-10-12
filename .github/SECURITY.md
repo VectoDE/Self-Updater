@@ -91,10 +91,18 @@ The old npm package `self-updater` (3.0.0 and older) was published by hand and h
 ## Vulnerabilities in dependencies
 
 The package has no runtime dependencies, so a vulnerability in a dependency can only affect development, CI or the
-container base image. Dependabot, OSV-Scanner and `npm audit` report them on every pull request, and they are fixed
-by updating. When a reported vulnerability does not affect the project and cannot be updated away, the project
-publishes an [OpenVEX](https://openvex.dev/) statement in `.vex/` that explains why it is not exploitable, and links
-it from the release notes. There are no such statements today.
+container image: its base image, the Docker CLI and Docker Compose, which is built from source with the versions in
+`docker/compose/go.mod`. Dependabot, OSV-Scanner (on the lockfiles and on the built image), govulncheck (on the Go
+binaries in the image) and `npm audit` report them on every pull request, and they are fixed by updating. When a
+reported vulnerability does not affect the project and cannot be updated away, the project publishes an
+[OpenVEX](https://openvex.dev/) statement in [`.vex/`](../.vex/self-updater.openvex.json) that explains why it is not
+exploitable, adds the matching ignore with the same reason and an expiry date to `docker/compose/osv-scanner.toml`,
+and links it from the release notes.
+
+Current statements:
+
+- GO-2026-5932 (`golang.org/x/crypto/openpgp`, no fixed version): not affected, Compose does not include the
+  openpgp packages.
 
 ## Secrets and credentials
 

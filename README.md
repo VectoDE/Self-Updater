@@ -210,7 +210,7 @@ Set `url`, `command` or both. Without a `healthCheck` section, a successful rest
 | `webhook.host`             | `127.0.0.1`           | Address to listen on                                                        |
 | `webhook.port`             | `9000`                |                                                                             |
 | `webhook.path`             | `/hooks/self-updater` |                                                                             |
-| `webhook.secret`           |                       | Required when the webhook is on, at least 16 characters                     |
+| `webhook.secret`           |                       | Required when the webhook is on, at least 32 characters                     |
 
 Polling can only be turned off while the webhook is on. Keeping both on is a good idea: polling catches deliveries
 that got lost.

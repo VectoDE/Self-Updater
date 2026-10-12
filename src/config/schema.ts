@@ -188,6 +188,9 @@ const NAME = /^[\w.@:-]{1,200}$/;
 const BRANCH = /^(?!-)(?!.*\.\.)[\w./-]{1,200}$/;
 const REMOTE = /^[\w.-]{1,100}$/;
 
+/** Shortest webhook secret; `openssl rand -hex 32` gives 64 characters. */
+export const MIN_WEBHOOK_SECRET = 32;
+
 class Reader {
   readonly issues: ConfigIssue[] = [];
 
@@ -497,8 +500,11 @@ const readWebhook = (r: Reader): WebhookConfig => {
   };
   const secret = r.string('webhook.secret');
   if (secret !== undefined) webhook.secret = secret;
-  if (webhook.enabled && (secret === undefined || secret.length < 16)) {
-    r.issue('webhook.secret', 'is required when the webhook is enabled and must have at least 16 characters');
+  if (webhook.enabled && (secret === undefined || secret.length < MIN_WEBHOOK_SECRET)) {
+    r.issue(
+      'webhook.secret',
+      `is required when the webhook is enabled and must have at least ${MIN_WEBHOOK_SECRET} characters`
+    );
   }
   return webhook;
 };

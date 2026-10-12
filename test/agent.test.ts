@@ -111,7 +111,7 @@ describe('Agent', () => {
   });
 
   it('starts the webhook and runs a cycle per accepted delivery', async () => {
-    const secret = 'agent-secret-0123456789';
+    const secret = 'agent-secret-0123456789abcdefghijklm';
     const { updater, update, release } = fakeUpdater({
       webhook: { enabled: true, secret, port: 9000 },
       schedule: { enabled: false },

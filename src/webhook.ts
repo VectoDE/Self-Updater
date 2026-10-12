@@ -1,4 +1,4 @@
-import { createHmac, timingSafeEqual } from 'node:crypto';
+import { createHash, createHmac, timingSafeEqual } from 'node:crypto';
 import { createServer, type IncomingMessage, type Server } from 'node:http';
 import type { AddressInfo } from 'node:net';
 import type { UpdaterConfig } from './config/schema.js';
@@ -19,9 +19,14 @@ export const verifyGitHubSignature = (secret: string, body: Buffer, header: stri
   return sameBytes(expected, given);
 };
 
-/** Checks GitLab's X-Gitlab-Token header, which carries the secret itself. */
+const digest = (value: string) => createHash('sha256').update(value).digest();
+
+/**
+ * Checks GitLab's X-Gitlab-Token header, which carries the secret itself. Both sides are hashed first, so the
+ * comparison takes the same time whatever the length of the guess and reveals nothing about the secret's length.
+ */
 export const verifyGitLabToken = (secret: string, header: string | undefined): boolean =>
-  header !== undefined && sameBytes(Buffer.from(secret), Buffer.from(header));
+  header !== undefined && timingSafeEqual(digest(secret), digest(header));
 
 export type WebhookVerdict =
   { accepted: true; reason: string; ref: string } | { accepted: false; status: number; reason: string };

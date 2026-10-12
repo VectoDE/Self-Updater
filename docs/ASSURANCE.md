@@ -52,10 +52,11 @@ deployed repository is trusted in the same way; protecting its branch is the job
 
 - **Economy of mechanism:** no runtime dependencies. Git does the transport and signature checks, Node's built-in
   modules do the rest.
-- **Fail-safe defaults:** the webhook only listens on 127.0.0.1 and cannot start without a secret of at least 16
+- **Fail-safe defaults:** the webhook only listens on 127.0.0.1 and cannot start without a secret of at least 32
   characters; a commit that failed is not retried on its own; rollback is on; a signature failure stops the
   deployment before anything changes.
-- **Least privilege:** the systemd example runs as an unprivileged user with a read-only system, the container image
+- **Least privilege:** the systemd example runs as an unprivileged user with `/usr`, `/boot` and `/etc` read-only, a private `/tmp` and
+  read-only home directories (it keeps `NoNewPrivileges` off only so that `sudo -n` restarts work), the container image
   runs as `node`, and `sudo -n` is used only for the restart command when asked for. The token is scoped to the
   repository's origin through `http.<origin>.extraHeader`, so Git sends it nowhere else, and configured credential
   helpers are switched off while it is set. CI jobs get read-only tokens unless a step needs more; the keys that push

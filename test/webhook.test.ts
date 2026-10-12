@@ -11,7 +11,7 @@ import {
 } from '../src/webhook.js';
 import { makeConfig, onCleanup, recordingLogger } from './helpers.js';
 
-const SECRET = 'webhook-secret-0123456789';
+const SECRET = 'webhook-secret-0123456789abcdefghijk';
 
 const configWith = (fields: Partial<UpdaterConfigInput> = {}) =>
   makeConfig({
@@ -41,6 +41,8 @@ describe('signature checks', () => {
     expect(verifyGitHubSignature(SECRET, body, undefined)).toBe(false);
     expect(verifyGitLabToken(SECRET, SECRET)).toBe(true);
     expect(verifyGitLabToken(SECRET, `${SECRET}x`)).toBe(false);
+    expect(verifyGitLabToken(SECRET, SECRET.replace('w', 'W'))).toBe(false);
+    expect(verifyGitLabToken(SECRET, '')).toBe(false);
     expect(verifyGitLabToken(SECRET, undefined)).toBe(false);
   });
 });
