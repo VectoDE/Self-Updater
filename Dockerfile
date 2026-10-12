@@ -20,14 +20,15 @@ ARG TARGETOS
 ARG TARGETARCH
 ARG COMPOSE_VERSION=v5.6.0
 ENV CGO_ENABLED=0 GOFLAGS=-trimpath GOTOOLCHAIN=local
-# go install checks the module against the Go checksum database. The binary lands in /go/bin, or in
-# /go/bin/<os>_<arch> when cross-compiling.
-RUN GOOS=$TARGETOS GOARCH=$TARGETARCH go install \
+# go mod download checks the module against the Go checksum database. Compose's go.mod has exclude directives, which
+# go install refuses, so it is built inside the downloaded module with its own go.sum.
+RUN go mod download -json "github.com/docker/compose/v5@$COMPOSE_VERSION" > /tmp/module.json \
+    && dir="$(sed -n 's/^[[:space:]]*"Dir": "\(.*\)",$/\1/p' /tmp/module.json)" \
+    && test -n "$dir" \
+    && cd "$dir" \
+    && GOOS=$TARGETOS GOARCH=$TARGETARCH go build -mod=readonly \
       -ldflags "-w -X github.com/docker/compose/v5/internal.Version=$COMPOSE_VERSION" \
-      "github.com/docker/compose/v5/cmd@$COMPOSE_VERSION" \
-    && mkdir /out \
-    && find /go/bin -type f -name cmd -exec mv {} /out/docker-compose \; \
-    && test -f /out/docker-compose
+      -o /out/docker-compose ./cmd
 
 # The Docker CLI from the official image, which is rebuilt with each Go release.
 FROM docker:29.9.0-cli-alpine3.24@sha256:1a4c7cb63513f349bdad01fcc6e0f3f2f67d37b9da86f14dc0d4a0942eecda00 AS docker-cli
