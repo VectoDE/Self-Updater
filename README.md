@@ -86,7 +86,7 @@ middle of a deployment: on SIGINT or SIGTERM it finishes the running cycle first
 
 `updater.config.json` is found through `--config`, then the `SELF_UPDATER_CONFIG` environment variable, then the
 current directory. Relative paths in it are relative to the file. Values can refer to environment variables with
-`${NAME}` or `${NAME:-default}`; write `$${` for a literal `${`. A `.env` file next to the configuration is loaded
+`${NAME}` or `${NAME:-default}` (a default cannot contain `$` or `}`); write `$${` for a literal `${`. A `.env` file next to the configuration is loaded
 first and never overrides variables that are already set.
 
 A full example for PM2 ([more in `examples/`](examples/)):
