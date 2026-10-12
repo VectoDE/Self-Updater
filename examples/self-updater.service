@@ -1,0 +1,29 @@
+# systemd unit for the updater itself. Install the package globally, put the configuration in
+# /etc/self-updater/, then: systemctl daemon-reload && systemctl enable --now self-updater
+[Unit]
+Description=Self-Updater: deploys new commits of the configured repository
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=deploy
+Group=deploy
+WorkingDirectory=/etc/self-updater
+Environment=SELF_UPDATER_CONFIG=/etc/self-updater/updater.config.json
+# Tokens and secrets, e.g. GITHUB_TOKEN=... and SELF_UPDATER_WEBHOOK_SECRET=..., readable only by root and deploy.
+EnvironmentFile=-/etc/self-updater/.env
+ExecStart=/usr/bin/env self-updater start --immediate
+Restart=on-failure
+RestartSec=10
+# A running deployment finishes before the service stops.
+TimeoutStopSec=15min
+KillMode=mixed
+
+NoNewPrivileges=false
+PrivateTmp=true
+ProtectSystem=full
+ProtectHome=read-only
+
+[Install]
+WantedBy=multi-user.target

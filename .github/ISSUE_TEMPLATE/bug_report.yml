@@ -1,0 +1,45 @@
+name: Bug report
+description: Something does not work as documented.
+labels: [bug]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Security problems belong in a [private advisory](https://github.com/VectoDE/Self-Updater/security/advisories/new), not here.
+        Remove tokens, webhook secrets and notification URLs from everything you paste.
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: What happened?
+      description: What did you do, what did you expect, what happened instead?
+    validations:
+      required: true
+  - type: textarea
+    id: config
+    attributes:
+      label: Configuration
+      description: Your updater.config.json without secrets.
+      render: json
+    validations:
+      required: true
+  - type: textarea
+    id: output
+    attributes:
+      label: Log output
+      description: Run the command again with SELF_UPDATER_LOG_LEVEL=debug.
+      render: text
+  - type: input
+    id: version
+    attributes:
+      label: Version
+      description: Output of `self-updater --version`
+      placeholder: 4.0.0
+    validations:
+      required: true
+  - type: input
+    id: environment
+    attributes:
+      label: Environment
+      placeholder: Node 24, Git 2.47, Ubuntu 24.04, service type pm2
+    validations:
+      required: true

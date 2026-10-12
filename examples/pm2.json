@@ -1,0 +1,17 @@
+{
+  "version": 3,
+  "repo": {
+    "url": "https://github.com/acme/api.git",
+    "branch": "main",
+    "token": "${GITHUB_TOKEN}"
+  },
+  "workspace": {
+    "path": "/srv/api",
+    "install": { "enabled": true, "command": "npm ci --omit=dev" }
+  },
+  "service": { "type": "pm2", "name": "api" },
+  "hooks": { "preUpdate": "npm run db:backup", "postUpdate": "npm run cache:warm" },
+  "healthCheck": { "url": "http://127.0.0.1:3000/health", "startDelaySeconds": 2 },
+  "schedule": { "intervalSeconds": 120, "jitterSeconds": 30 },
+  "notifications": [{ "type": "slack", "url": "${SLACK_WEBHOOK_URL}", "events": ["failure", "rollback"] }]
+}

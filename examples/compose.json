@@ -1,0 +1,17 @@
+{
+  "version": 3,
+  "repo": { "url": "git@github.com:acme/shop.git", "branch": "production" },
+  "workspace": { "path": "/srv/shop", "shallow": true },
+  "service": { "type": "compose", "composeFile": "compose.prod.yml", "composeService": "web" },
+  "healthCheck": { "url": "http://127.0.0.1:8080/healthz", "retries": 10, "intervalSeconds": 6 },
+  "schedule": { "enabled": false },
+  "webhook": {
+    "enabled": true,
+    "host": "127.0.0.1",
+    "port": 9000,
+    "path": "/hooks/self-updater",
+    "secret": "${SELF_UPDATER_WEBHOOK_SECRET}"
+  },
+  "notifications": [{ "type": "discord", "url": "${DISCORD_WEBHOOK_URL}" }],
+  "logging": { "format": "json" }
+}

@@ -1,0 +1,24 @@
+name: Feature request
+description: Suggest a service type, notification target, trigger or option.
+labels: [enhancement]
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: Which problem does this solve?
+      description: How do you deploy today, and what is missing?
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposed configuration
+      description: How would you like to configure it? A JSON sample helps.
+      render: json
+    validations:
+      required: true
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Workarounds you tried
+      description: For example a hook or a custom restart command.

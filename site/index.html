@@ -1,0 +1,401 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Self-Updater configuration builder</title>
+    <meta
+      name="description"
+      content="Write an updater.config.json for @vectode/self-updater and check it in your browser with the same validation the updater runs."
+    />
+    <meta name="color-scheme" content="light dark" />
+    <link
+      rel="icon"
+      href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Cpath d='M6 4v24M6 10h12a6 6 0 0 1 0 12h-4' fill='none' stroke='%230B5D86' stroke-width='3' stroke-linecap='round'/%3E%3Ccircle cx='6' cy='10' r='3' fill='%230B5D86'/%3E%3C/svg%3E"
+    />
+    <link rel="stylesheet" href="styles.css" />
+    <script type="module" src="main.js"></script>
+  </head>
+  <body>
+    <a class="skip" href="#builder">Skip to the form</a>
+    <header class="masthead">
+      <div class="masthead__inner">
+        <p class="brand">Self-Updater</p>
+        <nav aria-label="Project">
+          <a href="https://github.com/VectoDE/Self-Updater#readme">Documentation</a>
+          <a href="https://www.npmjs.com/package/@vectode/self-updater">npm</a>
+          <a href="https://github.com/VectoDE/Self-Updater">GitHub</a>
+        </nav>
+      </div>
+      <div class="intro">
+        <h1>Build your updater.config.json</h1>
+        <p>
+          Fill in how your server should follow the repository. The file on the right is checked with the same code the
+          updater runs, so what passes here starts on the server. Nothing leaves your browser.
+        </p>
+      </div>
+    </header>
+
+    <main id="builder" class="layout">
+      <form id="form" class="pipeline" novalidate>
+        <details class="import">
+          <summary>Start from an existing file</summary>
+          <label for="import-source">Paste a configuration, also from self-updater 1.x or 2.x</label>
+          <textarea id="import-source" rows="6" spellcheck="false"></textarea>
+          <button type="button" id="import-button">Load into the form</button>
+          <p id="import-result" class="hint" role="status"></p>
+        </details>
+
+        <p class="rail-label">Each update runs these steps in order</p>
+        <ol class="steps">
+          <li class="step" data-step="repo">
+            <h2><span class="marker" aria-hidden="true">1</span>Repository</h2>
+            <p class="hint">Where the code comes from.</p>
+            <div class="fields">
+              <label class="field field--wide">
+                <span>Clone URL</span>
+                <input
+                  name="repo.url"
+                  type="text"
+                  placeholder="https://github.com/acme/shop.git"
+                  autocomplete="off"
+                  required
+                />
+              </label>
+              <label class="field">
+                <span>Branch</span>
+                <input name="repo.branch" type="text" placeholder="main" autocomplete="off" />
+              </label>
+              <label class="field">
+                <span>Provider</span>
+                <select name="repo.provider">
+                  <option value="">Detect from the URL</option>
+                  <option value="github">GitHub</option>
+                  <option value="gitlab">GitLab</option>
+                  <option value="git">Plain Git</option>
+                </select>
+              </label>
+              <label class="field">
+                <span>Access token</span>
+                <input name="repo.token" type="text" placeholder="${GITHUB_TOKEN}" autocomplete="off" data-secret />
+                <small
+                  >For private repositories. Write <code>${NAME}</code> and put the value in the environment or
+                  <code>.env</code>.</small
+                >
+              </label>
+              <label class="field">
+                <span>API URL</span>
+                <input
+                  name="repo.apiUrl"
+                  type="url"
+                  placeholder="https://gitlab.example.com/api/v4"
+                  autocomplete="off"
+                />
+                <small>Only for GitHub Enterprise or self-hosted GitLab.</small>
+              </label>
+            </div>
+          </li>
+
+          <li class="step" data-step="track">
+            <h2><span class="marker" aria-hidden="true">2</span>What to deploy</h2>
+            <p class="hint">The newest commit of the branch, or the newest release tag.</p>
+            <div class="fields">
+              <fieldset class="field field--wide choice">
+                <legend>Follow</legend>
+                <label
+                  ><input type="radio" name="track.mode" value="branch" checked /> Every commit on the branch</label
+                >
+                <label><input type="radio" name="track.mode" value="tag" /> Release tags only</label>
+              </fieldset>
+              <label class="field" data-when="track.mode=tag">
+                <span>Tag pattern</span>
+                <input name="track.tagPattern" type="text" placeholder="v*" autocomplete="off" />
+                <small>The newest version number among matching tags wins.</small>
+              </label>
+              <label class="check" data-when="track.mode=tag">
+                <input name="track.prerelease" type="checkbox" /> Include prereleases such as v2.0.0-rc.1
+              </label>
+              <label class="check field--wide">
+                <input name="track.requireSignature" type="checkbox" /> Deploy only signed commits or tags
+              </label>
+              <label class="field field--wide" data-when="track.requireSignature">
+                <span>Allowed signers file</span>
+                <input name="track.allowedSigners" type="text" placeholder="./allowed_signers" autocomplete="off" />
+                <small>For SSH signatures; GPG signatures use the keyring of the user running the updater.</small>
+              </label>
+            </div>
+          </li>
+
+          <li class="step" data-step="workspace">
+            <h2><span class="marker" aria-hidden="true">3</span>Checkout and install</h2>
+            <p class="hint">The directory your service runs from. The updater creates it on the first run.</p>
+            <div class="fields">
+              <label class="field field--wide">
+                <span>Workspace directory</span>
+                <input name="workspace.path" type="text" placeholder="/srv/shop" autocomplete="off" required />
+              </label>
+              <label class="check">
+                <input name="workspace.shallow" type="checkbox" /> Shallow fetch (smaller, but no install skipping)
+              </label>
+              <label class="check">
+                <input name="workspace.install.enabled" type="checkbox" /> Install dependencies
+              </label>
+              <label class="field" data-when="workspace.install.enabled">
+                <span>Install command</span>
+                <input name="workspace.install.command" type="text" placeholder="npm ci" autocomplete="off" />
+              </label>
+              <label class="field" data-when="workspace.install.enabled">
+                <span>When</span>
+                <select name="workspace.install.when">
+                  <option value="">When a lockfile or manifest changed</option>
+                  <option value="always">After every update</option>
+                </select>
+              </label>
+            </div>
+          </li>
+
+          <li class="step" data-step="hooks">
+            <h2><span class="marker" aria-hidden="true">4</span>Before the switch</h2>
+            <p class="hint">Runs in the workspace before the new code is checked out. If it fails, nothing changes.</p>
+            <div class="fields">
+              <label class="field field--wide">
+                <span>Pre-update command</span>
+                <input name="hooks.preUpdate" type="text" placeholder="npm run migrate:check" autocomplete="off" />
+              </label>
+              <label class="field">
+                <span>Time limit per command (seconds)</span>
+                <input name="hooks.timeoutSeconds" type="number" min="1" placeholder="600" inputmode="numeric" />
+              </label>
+            </div>
+          </li>
+
+          <li class="step" data-step="service">
+            <h2><span class="marker" aria-hidden="true">5</span>Restart</h2>
+            <p class="hint">How the new version starts.</p>
+            <div class="fields">
+              <label class="field">
+                <span>Service type</span>
+                <select name="service.type">
+                  <option value="pm2">PM2 process</option>
+                  <option value="systemd">systemd unit</option>
+                  <option value="docker">Docker container</option>
+                  <option value="compose">Docker Compose service</option>
+                  <option value="command">Custom command</option>
+                  <option value="none">Nothing to restart</option>
+                </select>
+              </label>
+              <label class="field" data-when="service.type=pm2,systemd,docker,compose">
+                <span>Name</span>
+                <input name="service.name" type="text" placeholder="shop" autocomplete="off" />
+              </label>
+              <label class="field" data-when="service.type=compose">
+                <span>Compose file</span>
+                <input name="service.composeFile" type="text" placeholder="compose.yaml" autocomplete="off" />
+              </label>
+              <label class="field" data-when="service.type=compose">
+                <span>Compose service</span>
+                <input name="service.composeService" type="text" placeholder="web" autocomplete="off" />
+              </label>
+              <label class="field field--wide" data-when="service.type=command,pm2,systemd,docker,compose">
+                <span>Restart command</span>
+                <input name="service.command" type="text" placeholder="./restart.sh" autocomplete="off" />
+                <small>Required for a custom command; replaces the built-in restart for the other types.</small>
+              </label>
+              <label class="check field--wide" data-when="service.type=pm2,systemd,docker,compose">
+                <input name="service.sudo" type="checkbox" /> Run the built-in restart with <code>sudo -n</code>
+              </label>
+            </div>
+          </li>
+
+          <li class="step" data-step="healthCheck">
+            <h2><span class="marker" aria-hidden="true">6</span>Health check</h2>
+            <p class="hint">Proves the new version works. Leave both empty to skip it.</p>
+            <div class="fields">
+              <label class="field">
+                <span>URL that must answer</span>
+                <input
+                  name="healthCheck.url"
+                  type="url"
+                  placeholder="http://127.0.0.1:3000/health"
+                  autocomplete="off"
+                />
+              </label>
+              <label class="field">
+                <span>Expected status</span>
+                <input
+                  name="healthCheck.expectStatus"
+                  type="number"
+                  min="100"
+                  max="599"
+                  placeholder="200"
+                  inputmode="numeric"
+                />
+              </label>
+              <label class="field field--wide">
+                <span>Command that must succeed</span>
+                <input name="healthCheck.command" type="text" placeholder="npm run smoke" autocomplete="off" />
+              </label>
+              <label class="field">
+                <span>Retries</span>
+                <input name="healthCheck.retries" type="number" min="0" placeholder="5" inputmode="numeric" />
+              </label>
+              <label class="field">
+                <span>Seconds between tries</span>
+                <input name="healthCheck.intervalSeconds" type="number" min="1" placeholder="5" inputmode="numeric" />
+              </label>
+              <label class="field">
+                <span>Wait before the first try</span>
+                <input name="healthCheck.startDelaySeconds" type="number" min="0" placeholder="0" inputmode="numeric" />
+              </label>
+            </div>
+          </li>
+
+          <li class="step" data-step="rollback">
+            <h2><span class="marker" aria-hidden="true">7</span>Finish or roll back</h2>
+            <p class="hint">
+              After a successful check the post-update command runs. After a failure the previous commit comes back.
+            </p>
+            <div class="fields">
+              <label class="field field--wide">
+                <span>Post-update command</span>
+                <input name="hooks.postUpdate" type="text" placeholder="npm run cache:clear" autocomplete="off" />
+              </label>
+              <label class="check field--wide">
+                <input name="rollback.enabled" type="checkbox" checked /> Roll back when install, restart or the health
+                check fails
+              </label>
+            </div>
+          </li>
+        </ol>
+
+        <p class="rail-label">Around the deployment</p>
+        <section class="extra" data-step="triggers" aria-labelledby="triggers-title">
+          <h2 id="triggers-title">Triggers</h2>
+          <div class="fields">
+            <label class="check field--wide">
+              <input name="schedule.enabled" type="checkbox" checked /> Poll the repository
+            </label>
+            <label class="field" data-when="schedule.enabled">
+              <span>Every (seconds)</span>
+              <input name="schedule.intervalSeconds" type="number" min="15" placeholder="60" inputmode="numeric" />
+            </label>
+            <label class="field" data-when="schedule.enabled">
+              <span>Random extra delay up to</span>
+              <input name="schedule.jitterSeconds" type="number" min="0" placeholder="0" inputmode="numeric" />
+            </label>
+            <label class="check field--wide">
+              <input name="webhook.enabled" type="checkbox" /> Listen for GitHub or GitLab webhooks
+            </label>
+            <label class="field" data-when="webhook.enabled">
+              <span>Address</span>
+              <input name="webhook.host" type="text" placeholder="127.0.0.1" autocomplete="off" />
+            </label>
+            <label class="field" data-when="webhook.enabled">
+              <span>Port</span>
+              <input name="webhook.port" type="number" min="1" max="65535" placeholder="9000" inputmode="numeric" />
+            </label>
+            <label class="field" data-when="webhook.enabled">
+              <span>Path</span>
+              <input name="webhook.path" type="text" placeholder="/hooks/self-updater" autocomplete="off" />
+            </label>
+            <label class="field" data-when="webhook.enabled">
+              <span>Secret</span>
+              <input
+                name="webhook.secret"
+                type="text"
+                placeholder="${SELF_UPDATER_WEBHOOK_SECRET}"
+                autocomplete="off"
+                data-secret
+              />
+              <small>The same value goes into the webhook settings of GitHub or GitLab.</small>
+            </label>
+          </div>
+        </section>
+
+        <section class="extra" data-step="notifications" aria-labelledby="notifications-title">
+          <h2 id="notifications-title">Notifications</h2>
+          <p class="hint">Messages after a deployment, a failure or a rollback.</p>
+          <div id="notifications"></div>
+          <button type="button" id="add-notification" class="quiet">Add a notification</button>
+        </section>
+
+        <section class="extra" data-step="logging" aria-labelledby="logging-title">
+          <h2 id="logging-title">Logging</h2>
+          <div class="fields">
+            <label class="field">
+              <span>Level</span>
+              <select name="logging.level">
+                <option value="">info</option>
+                <option value="debug">debug</option>
+                <option value="warn">warn</option>
+                <option value="error">error</option>
+              </select>
+            </label>
+            <label class="field">
+              <span>Format</span>
+              <select name="logging.format">
+                <option value="">Text</option>
+                <option value="json">JSON lines</option>
+              </select>
+            </label>
+            <label class="field field--wide">
+              <span>Also write to file</span>
+              <input name="logging.file" type="text" placeholder="/var/log/self-updater.log" autocomplete="off" />
+            </label>
+          </div>
+        </section>
+      </form>
+
+      <aside class="output" aria-labelledby="output-title">
+        <div class="output__head">
+          <h2 id="output-title">updater.config.json</h2>
+          <p id="status" class="status" role="status" aria-live="polite"></p>
+        </div>
+        <ul id="issues" class="issues"></ul>
+        <pre id="json" class="json" tabindex="0" aria-label="Generated configuration"></pre>
+        <div class="actions">
+          <button type="button" id="copy">Copy</button>
+          <button type="button" id="download" class="quiet">Download</button>
+        </div>
+        <div class="next">
+          <h3>On the server</h3>
+          <pre class="commands"><code>npm install --global @vectode/self-updater
+self-updater validate
+self-updater start</code></pre>
+          <p class="hint">Put the file next to where you run the commands, or pass <code>--config</code>.</p>
+        </div>
+      </aside>
+    </main>
+
+    <template id="notification-row">
+      <div class="notification">
+        <label class="field">
+          <span>Service</span>
+          <select data-key="type">
+            <option value="slack">Slack</option>
+            <option value="discord">Discord</option>
+            <option value="webhook">Other webhook (JSON)</option>
+          </select>
+        </label>
+        <label class="field field--wide">
+          <span>Webhook URL</span>
+          <input data-key="url" type="text" placeholder="${SLACK_WEBHOOK_URL}" autocomplete="off" data-secret />
+        </label>
+        <fieldset class="field choice">
+          <legend>Send on</legend>
+          <label><input type="checkbox" data-event="success" /> Success</label>
+          <label><input type="checkbox" data-event="failure" checked /> Failure</label>
+          <label><input type="checkbox" data-event="rollback" checked /> Rollback</label>
+        </fieldset>
+        <button type="button" class="quiet remove">Remove</button>
+      </div>
+    </template>
+
+    <footer class="footer">
+      <p>
+        @vectode/self-updater, Apache License 2.0.
+        <a href="https://github.com/VectoDE/Self-Updater/blob/main/.github/SECURITY.md">Security policy</a>
+      </p>
+    </footer>
+  </body>
+</html>

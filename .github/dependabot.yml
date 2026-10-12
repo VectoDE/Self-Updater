@@ -1,0 +1,38 @@
+version: 2
+updates:
+  - package-ecosystem: npm
+    directory: /
+    schedule:
+      interval: weekly
+      day: monday
+    open-pull-requests-limit: 10
+    labels: [dependencies]
+    ignore:
+      # The types must match the oldest supported Node.js (engines: >=22), or code could use newer APIs.
+      - dependency-name: '@types/node'
+        update-types: [version-update:semver-major]
+      # `typescript` stays on 6.x because typescript-eslint and sonarjs need its compiler API, which TypeScript 7
+      # no longer ships. TypeScript 7 is installed as `typescript-7` and type checks the code as well.
+      - dependency-name: typescript
+        versions: ['>=7']
+    groups:
+      development:
+        dependency-type: development
+        update-types: [minor, patch]
+
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+      day: monday
+    labels: [dependencies, ci]
+    groups:
+      actions:
+        patterns: ['*']
+
+  - package-ecosystem: docker
+    directory: /
+    schedule:
+      interval: weekly
+      day: monday
+    labels: [dependencies, docker]
