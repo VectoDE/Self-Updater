@@ -465,6 +465,11 @@ button.quiet:hover {
   font-weight: 600;
 }
 
+output.hint,
+output.status {
+  display: block;
+}
+
 .status {
   margin: 0;
   font-weight: 650;
@@ -548,8 +553,10 @@ button.quiet:hover {
   white-space: pre;
 }
 
+/* Wraps instead of scrolling, so the whole file is readable without a scrollable region. */
 .json {
-  max-height: 32rem;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
 }
 
 .actions {

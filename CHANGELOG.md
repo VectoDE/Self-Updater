@@ -5,6 +5,15 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+### Changed
+
+- The container image builds Docker Compose with Go 1.27.2.
+
+### Fixed
+
+- Configuration builder: status messages are `<output>` elements, and the generated file wraps instead of scrolling,
+  so it is readable without a keyboard-focusable scroll area.
+
 ## [4.0.0] - 2026-10-12
 
 The package is now `@vectode/self-updater`. It was rewritten in TypeScript and has no runtime dependencies. Run

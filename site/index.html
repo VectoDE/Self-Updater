@@ -43,7 +43,7 @@
           <label for="import-source">Paste a configuration, also from self-updater 1.x or 2.x</label>
           <textarea id="import-source" rows="6" spellcheck="false"></textarea>
           <button type="button" id="import-button">Load into the form</button>
-          <p id="import-result" class="hint" role="status"></p>
+          <output id="import-result" class="hint"></output>
         </details>
 
         <p class="rail-label">Each update runs these steps in order</p>
@@ -349,10 +349,10 @@
       <aside class="output" aria-labelledby="output-title">
         <div class="output__head">
           <h2 id="output-title">updater.config.json</h2>
-          <p id="status" class="status" role="status" aria-live="polite"></p>
+          <output id="status" class="status" aria-live="polite"></output>
         </div>
         <ul id="issues" class="issues"></ul>
-        <pre id="json" class="json" tabindex="0" aria-label="Generated configuration"></pre>
+        <pre id="json" class="json" aria-label="Generated configuration"></pre>
         <div class="actions">
           <button type="button" id="copy">Copy</button>
           <button type="button" id="download" class="quiet">Download</button>
