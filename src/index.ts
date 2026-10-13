@@ -3,16 +3,19 @@
 // SPDX-License-Identifier: Apache-2.0
 
 // Public API of @vectode/self-updater. The CLI is a thin layer over these.
-export { Agent, type AgentOptions } from './agent.js';
+export { Agent, type AgentOptions, describeWorkspace, type WorkspaceStatus } from './agent.js';
 export {
   DEFAULT_CONFIG_FILE,
   expandEnvironment,
   loadConfig,
+  loadConfigSet,
   type LoadedConfig,
+  type LoadedConfigSet,
   resolveConfigPath,
   statePathFor,
 } from './config/load.js';
 export * from './config/schema.js';
+export { Fleet, type FleetMember, type FleetOptions } from './fleet.js';
 export { type ErrorCode, isSelfUpdaterError, SelfUpdaterError } from './errors.js';
 export { describeCommand, run, runChecked, type RunOptions, type RunResult } from './exec.js';
 export { detectProvider, Git, gitEnvironment, type RemoteRef } from './git.js';
@@ -22,6 +25,7 @@ export { type LogFields, Logger, type LoggerOptions, type LogRecord, silentLogge
 export { createEvent, type DeploymentEvent, notify, payloadFor, summarize } from './notify.js';
 export { compareSemVer, newestTag, parseSemVer, type SemVer, tagMatcher } from './semver.js';
 export { restartCommand } from './service.js';
+export { type SlotName, Slots } from './slots.js';
 export { type DeploymentOutcome, type DeploymentRecord, readState, type UpdaterState } from './state.js';
 export { branchApiRequest, type FetchLike, type Target, TargetResolver } from './target.js';
 export {
@@ -34,10 +38,15 @@ export {
   type UpdaterOptions,
 } from './updater.js';
 export {
+  isSameRepository,
   judgeDelivery,
+  judgeSharedDelivery,
+  type ReceiverOptions,
+  startReceiver,
   startWebhookServer,
   verifyGitHubSignature,
   verifyGitLabToken,
   type WebhookServer,
   type WebhookVerdict,
+  workspacesFor,
 } from './webhook.js';

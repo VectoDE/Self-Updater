@@ -40,6 +40,7 @@ describe('parseConfig', () => {
       workspace: {
         path: '/srv/app',
         shallow: false,
+        strategy: 'in-place',
         install: {
           enabled: false,
           command: 'npm ci',

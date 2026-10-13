@@ -8,18 +8,20 @@ import path from 'node:path';
 import process from 'node:process';
 import { parseArgs, type ParseArgsConfig } from 'node:util';
 import { Agent } from '../agent.js';
-import { expandEnvironment, loadConfig, resolveConfigPath, statePathFor, writeJsonFile } from '../config/load.js';
+import { expandEnvironment, loadConfigSet, resolveConfigPath, statePathFor, writeJsonFile } from '../config/load.js';
 import {
+  type ConfigSet,
   CONFIG_VERSION,
   formatIssues,
   migrateConfig,
   parseConfig,
   SERVICE_TYPES,
   type ServiceType,
-  type UpdaterConfig,
   type UpdaterConfigInput,
+  type WorkspaceEntry,
 } from '../config/schema.js';
 import { isSelfUpdaterError, messageOf } from '../errors.js';
+import { Fleet } from '../fleet.js';
 import { Logger } from '../logger.js';
 import type { FetchLike } from '../target.js';
 import { type UpdateResult, Updater } from '../updater.js';
@@ -58,6 +60,7 @@ Options
 update:   --force (deploy even if current or failed before), --dry-run
 start:    --immediate (run a cycle right away)
 rollback: --to <commit>
+update, status, rollback, start: -w, --workspace <name> (only this workspace of a "workspaces" list)
 
 Exit codes: 0 done, 1 failed, 2 usage or configuration error, 3 rolled back.
 Documentation: https://github.com/VectoDE/Self-Updater#readme`;
@@ -133,10 +136,10 @@ const COMMAND_OPTIONS = {
     'webhook-port': { type: 'string' },
     force: { type: 'boolean' },
   },
-  start: { immediate: { type: 'boolean' } },
-  update: { force: { type: 'boolean' }, 'dry-run': { type: 'boolean' } },
-  status: {},
-  rollback: { to: { type: 'string' } },
+  start: { immediate: { type: 'boolean' }, workspace: { type: 'string', short: 'w' } },
+  update: { force: { type: 'boolean' }, 'dry-run': { type: 'boolean' }, workspace: { type: 'string', short: 'w' } },
+  status: { workspace: { type: 'string', short: 'w' } },
+  rollback: { to: { type: 'string' }, workspace: { type: 'string', short: 'w' } },
   validate: {},
   migrate: {},
 } as const satisfies Record<string, ParseArgsConfig['options']>;
@@ -176,12 +179,16 @@ interface Context {
   print: (value: unknown, output: string) => void;
 }
 
-const loggerFor = (config: UpdaterConfig, context: Context): Logger =>
+const loggerFor = (set: ConfigSet, context: Context): Logger =>
   new Logger({
-    level: context.env.SELF_UPDATER_LOG_LEVEL === 'debug' ? 'debug' : config.logging.level,
-    format: context.json ? 'json' : config.logging.format,
-    ...present({ file: config.logging.file }),
-    secrets: [config.repo.token, config.webhook.secret, ...config.notifications.map(({ url }) => url)],
+    level: context.env.SELF_UPDATER_LOG_LEVEL === 'debug' ? 'debug' : set.logging.level,
+    format: context.json ? 'json' : set.logging.format,
+    ...present({ file: set.logging.file }),
+    secrets: [
+      set.webhook.secret,
+      set.webhook.statusToken,
+      ...set.workspaces.flatMap(({ config }) => [config.repo.token, ...config.notifications.map(({ url }) => url)]),
+    ],
     write: (line, level) => {
       if (level === 'error' || level === 'warn') {
         context.io.stderr(line);
@@ -361,7 +368,7 @@ const runMigrate = async ({ configPath, print }: Context): Promise<number> => {
   return EXIT.ok;
 };
 
-const runStatus = async (updater: Updater, { print }: Context): Promise<number> => {
+const statusLines = async (updater: Updater): Promise<{ status: unknown; lines: string[] }> => {
   const status = await updater.status();
   const lines = [
     status.updateAvailable ? 'Update available' : 'Up to date',
@@ -374,8 +381,82 @@ const runStatus = async (updater: Updater, { print }: Context): Promise<number> 
   if (status.state.updatedAt) {
     lines.push(`Last update: ${status.state.updatedAt}`);
   }
-  print(status, lines.join('\n'));
+  const slot = updater.activeSlot();
+  if (slot) {
+    lines.push(`Live slot: ${slot}`);
+  }
+  return { status, lines };
+};
+
+interface Member {
+  name: string;
+  updater: Updater;
+}
+
+/** Runs task for each item, one after the other; recursion keeps await out of a loop. */
+const inSequence = async <T, R>(items: readonly T[], task: (item: T) => Promise<R>): Promise<R[]> => {
+  const [first, ...rest] = items;
+  if (first === undefined) {
+    return [];
+  }
+  const result = await task(first);
+  return [result, ...(await inSequence(rest, task))];
+};
+
+const runStatus = async (members: readonly Member[], multiple: boolean, { print }: Context): Promise<number> => {
+  if (!multiple) {
+    const [only] = members;
+    if (only) {
+      const { status, lines } = await statusLines(only.updater);
+      print(status, lines.join('\n'));
+    }
+    return EXIT.ok;
+  }
+  const reports = await inSequence(members, async ({ name, updater }) => ({ name, ...(await statusLines(updater)) }));
+  print(
+    { workspaces: reports.map(({ name, status }) => ({ name, status })) },
+    reports.map(({ name, lines }) => [`[${name}]`, ...lines.map((line) => `  ${line}`)].join('\n')).join('\n\n')
+  );
   return EXIT.ok;
+};
+
+/** Worst first: a failure outweighs a rollback, a rollback outweighs success. */
+const worstExit = (codes: readonly number[]): number => {
+  if (codes.includes(EXIT.failed)) {
+    return EXIT.failed;
+  }
+  return codes.includes(EXIT.rolledBack) ? EXIT.rolledBack : EXIT.ok;
+};
+
+/** Updates the workspaces one after the other; a broken one does not stop the rest. */
+const runUpdate = async (members: readonly Member[], multiple: boolean, context: Context): Promise<number> => {
+  const { options, print } = context;
+  const updateOptions = { force: options.force === true, dryRun: options['dry-run'] === true };
+  const [only] = members;
+  if (!multiple && only) {
+    const result = await only.updater.update(updateOptions);
+    print(result, describeResult(result));
+    return EXIT_BY_OUTCOME[result.outcome];
+  }
+  const runs = await inSequence(members, async ({ name, updater }) => {
+    try {
+      const result = await updater.update(updateOptions);
+      return {
+        record: { name, ...result },
+        line: `[${name}] ${describeResult(result)}`,
+        code: EXIT_BY_OUTCOME[result.outcome],
+      };
+    } catch (error) {
+      const message = messageOf(error);
+      return {
+        record: { name, outcome: 'error', error: message },
+        line: `[${name}] Update failed: ${message}`,
+        code: EXIT.failed,
+      };
+    }
+  });
+  print({ workspaces: runs.map(({ record }) => record) }, runs.map(({ line }) => line).join('\n'));
+  return worstExit(runs.map(({ code }) => code));
 };
 
 const untilAborted = (signal: AbortSignal | undefined): Promise<void> =>
@@ -393,48 +474,80 @@ const untilAborted = (signal: AbortSignal | undefined): Promise<void> =>
     );
   });
 
-const runStart = async (updater: Updater, logger: Logger, { io, options }: Context): Promise<number> => {
-  const agent = new Agent(updater, { logger, immediate: options.immediate === true });
-  await agent.start();
+const runStart = async (
+  members: readonly Member[],
+  set: ConfigSet,
+  logger: Logger,
+  { io, options }: Context
+): Promise<number> => {
+  const immediate = options.immediate === true;
+  const [only] = members;
+  // One workspace keeps the 4.0 behaviour and log lines; a list runs as a fleet with one shared receiver.
+  const runner =
+    !set.multiple && only
+      ? new Agent(only.updater, { logger, immediate })
+      : new Fleet(members, set.webhook, { logger, immediate });
+  await runner.start();
   await untilAborted(io.signal);
-  await agent.stop();
+  await runner.stop();
   return EXIT.ok;
+};
+
+/** The workspaces a command works on: all, or the one named with --workspace. */
+const selectWorkspaces = (set: ConfigSet, name: string | undefined): WorkspaceEntry[] => {
+  if (name === undefined) {
+    return set.workspaces;
+  }
+  const found = set.workspaces.filter((entry) => entry.name === name);
+  if (found.length === 0) {
+    const known = set.workspaces.map((entry) => entry.name).join(', ');
+    throw new UsageError(`There is no workspace "${name}". The configuration has: ${known}.`);
+  }
+  return found;
 };
 
 /** Commands that work on a loaded configuration. */
 const runWithConfig = async (command: Command, context: Context): Promise<number> => {
   const { configPath, env, options, print } = context;
   loadEnvFile(text(options, 'env-file'), configPath, env);
-  const loaded = loadConfig(configPath, env);
+  const { set, migrated } = loadConfigSet(configPath, env);
   if (command === 'validate') {
-    const note = loaded.migrated ? ' (older format; "self-updater migrate" converts it)' : '';
-    print({ valid: true, path: configPath, migrated: loaded.migrated }, `${configPath} is valid${note}.`);
+    const note = migrated ? ' (older format; "self-updater migrate" converts it)' : '';
+    const count = set.multiple ? ` with ${set.workspaces.length} workspaces` : '';
+    print(
+      { valid: true, path: configPath, migrated, workspaces: set.workspaces.map(({ name }) => name) },
+      `${configPath} is valid${count}${note}.`
+    );
     return EXIT.ok;
   }
-  const logger = loggerFor(loaded.config, context);
-  if (loaded.migrated) {
+  const logger = loggerFor(set, context);
+  if (migrated) {
     logger.warn(`${configPath} uses an older format; run "self-updater migrate" to convert it.`);
   }
-  const updater = new Updater(loaded.config, {
-    statePath: statePathFor(configPath),
-    logger,
-    ...present({ fetch: context.io.fetch }),
-  });
+  const members: Member[] = selectWorkspaces(set, text(options, 'workspace')).map(({ name, config }) => ({
+    name,
+    updater: new Updater(config, {
+      statePath: statePathFor(configPath, name),
+      logger: set.multiple ? logger.child({ workspace: name }) : logger,
+      ...present({ fetch: context.io.fetch }),
+    }),
+  }));
   switch (command) {
     case 'status':
-      return runStatus(updater, context);
-    case 'update': {
-      const result = await updater.update({ force: options.force === true, dryRun: options['dry-run'] === true });
-      print(result, describeResult(result));
-      return EXIT_BY_OUTCOME[result.outcome];
-    }
+      return runStatus(members, set.multiple, context);
+    case 'update':
+      return runUpdate(members, set.multiple, context);
     case 'rollback': {
-      const result = await updater.rollbackTo(text(options, 'to'));
+      const [only, ...others] = members;
+      if (!only || others.length > 0) {
+        throw new UsageError('rollback works on one workspace; name it with --workspace.');
+      }
+      const result = await only.updater.rollbackTo(text(options, 'to'));
       print(result, `Rolled back to ${result.commit ?? 'unknown'}.`);
       return EXIT.ok;
     }
     default:
-      return runStart(updater, logger, context);
+      return runStart(members, set, logger, context);
   }
 };
 

@@ -8,7 +8,7 @@ design principles are applied and how common weaknesses are countered.
 1. Only code from the configured repository is deployed: the newest commit of the tracked branch, or the newest tag
    matching the pattern. With `track.requireSignature`, only code with a valid signature from an allowed key.
 2. Nobody without the webhook secret can start an update through the webhook, and no delivery can choose what is
-   deployed.
+   deployed. The status endpoint tells nobody but the machine itself, or holders of the status token, what runs.
 3. Tokens, webhook secrets and notification URLs never appear in logs, error messages, notifications, `.git/config`,
    command-line arguments or the state file.
 4. Values that do not come from the operator's configuration (branch and tag names from the remote, webhook payloads,
@@ -22,6 +22,7 @@ design principles are applied and how common weaknesses are countered.
 | Actor                                                                         | Goal                                                      | Requirement |
 | ----------------------------------------------------------------------------- | --------------------------------------------------------- | ----------- |
 | Anyone who can reach the webhook port                                         | Trigger deployments, flood the server, deploy another ref | 2           |
+| Anyone who can reach the webhook port                                         | Learn repositories and deployed commits from the status   | 2           |
 | Attacker with push access to another ref                                      | Get an unreviewed branch or tag deployed                  | 1           |
 | Attacker who controls a compromised mirror or account without the signing key | Deploy modified code                                      | 1           |
 | Reader of logs, chat channels or CI output                                    | Collect access tokens and webhook URLs                    | 3           |
@@ -40,7 +41,10 @@ deployed repository is trusted in the same way; protecting its branch is the job
   before anything runs (`self-updater validate`), so mistakes fail early with the path of the field.
 - **Webhook requests** come from the network and are untrusted. The body is limited to 1 MB, the GitHub HMAC or
   GitLab token is compared in constant time before the payload is parsed, and the payload only decides whether a
-  cycle starts. The target is then resolved from the repository like in a poll.
+  cycle starts. The target is then resolved from the repository like in a poll. With several workspaces, a
+  delivery only reaches the workspaces whose repository and ref it names. The status endpoint answers only `GET`,
+  needs a bearer token (compared in constant time) on any address other than loopback, and leaves out error messages
+  and command output.
 - **The remote repository and provider API** are trusted for content but not for names: refs are passed to Git as
   separate arguments after `--` or in a full refspec, API answers are accepted only if they are a commit id, and
   branch, remote and service names in the configuration are checked against strict patterns.
@@ -77,7 +81,8 @@ deployed repository is trusted in the same way; protecting its branch is the job
 | CWE-345 insufficient verification          | `git verify-commit` / `verify-tag` with an allowed signers file before checkout                                                                                         |
 | CWE-290 / CWE-208 webhook spoofing, timing | HMAC-SHA256 or token compared with `timingSafeEqual`                                                                                                                    |
 | CWE-400 resource exhaustion                | 1 MB body limit, request and header timeouts, one running cycle with coalesced triggers, output caps, time limits                                                       |
-| CWE-362 race conditions                    | Exclusive lock file created with `wx`, owner check before release, stale locks only taken over once                                                                     |
+| CWE-362 race conditions                    | Exclusive lock file created with `wx`, owner check before release, stale locks only taken over once; blue-green switches the link with one rename                       |
+| CWE-200 information exposure               | The status endpoint is off by default, needs a token off loopback, and reports commits and outcomes but no errors or output                                             |
 | CWE-732 permissions                        | Configuration and state are written with mode 0600 through a temporary file and an atomic rename                                                                        |
 | CWE-1357 untrusted components              | Zero runtime dependencies; dev dependencies pinned in the lockfile, scanned by Dependabot, OSV-Scanner and dependency review                                            |
 | CWE-494 download without integrity         | Releases are built in GitHub Actions and published with signed SLSA provenance and GitHub attestations                                                                  |
@@ -86,7 +91,8 @@ deployed repository is trusted in the same way; protecting its branch is the job
 
 - Tests and coverage: `npm run test:coverage` (thresholds in `vitest.config.ts`). Deployments, rollbacks, tag mode
   and SSH signatures are tested against real Git repositories in `test/updater.test.ts` and `test/git.test.ts`;
-  webhook authentication in `test/webhook.test.ts`; property-based tests for redaction, signatures and parsing in
+  webhook authentication in `test/webhook.test.ts`; blue-green switches and rollbacks in `test/blue-green.test.ts`;
+  several workspaces, shared deliveries and the status endpoint in `test/workspaces.test.ts`; property-based tests for redaction, signatures and parsing in
   `test/properties.test.ts`.
 - Static analysis: CodeQL and SonarQube Cloud on every pull request, ESLint with `--max-warnings 0`.
 - Supply chain: [OpenSSF Scorecard](https://scorecard.dev/viewer/?uri=github.com/VectoDE/Self-Updater), pinned

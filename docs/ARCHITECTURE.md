@@ -24,14 +24,16 @@ file. `__VERSION__` is replaced with the version from `package.json` at build ti
 | `git.ts`           | The Git commands the updater needs, token header through the environment, signature checks         |
 | `target.ts`        | What to deploy: branch head through the provider API (with ETag) or `ls-remote`, or the newest tag |
 | `updater.ts`       | One update cycle with rollback, plus `status` and manual `rollbackTo`                              |
+| `slots.ts`         | Blue-green: the two checkouts, which one is live, switching the link                               |
 | `exec.ts`          | Child processes with time limits, process tree termination and capped output                       |
 | `service.ts`       | Restart commands per service type                                                                  |
 | `health.ts`        | URL and command checks with retries                                                                |
 | `lock.ts`          | Exclusive lock file per workspace                                                                  |
 | `state.ts`         | `updater.state.json`: last deployment, failed commit, history of 50 entries                        |
 | `notify.ts`        | Slack, Discord and JSON webhook messages                                                           |
-| `webhook.ts`       | HTTP receiver, signature and token checks, ref filter                                              |
-| `agent.ts`         | Schedule, webhook triggers, one cycle at a time, graceful stop                                     |
+| `webhook.ts`       | HTTP receiver, signature and token checks, ref and repository filter, status endpoint              |
+| `agent.ts`         | Schedule, webhook triggers, one cycle at a time, graceful stop, status of a workspace              |
+| `fleet.ts`         | One agent per workspace of a file, one shared receiver                                             |
 | `logger.ts`        | Text and JSON lines, secret redaction, optional log file                                           |
 | `cli/run.ts`       | Argument parsing, `.env` loading, commands and exit codes                                          |
 
@@ -49,6 +51,11 @@ file. `__VERSION__` is replaced with the version from `package.json` at build ti
 8. On failure, `rollBack()` checks out the previous commit and runs `activate()` without the post-update hook.
 9. `finish()` writes the state, sends notifications and returns the result. The lock is released in `finally`.
 
+With `workspace.strategy: "blue-green"`, steps 5 to 7 run in the idle slot (`<path>.blue` or `<path>.green`) up to
+the install; then `Slots.switchTo()` moves the link at `workspace.path`, and restart, health check and post-update
+hook follow. A failure before the switch leaves the live slot untouched; a failure after it moves the link back and
+restarts without installing.
+
 `update()` does not throw for a failed deployment; the result says what happened. It throws for problems before the
 lock (network, Git, configuration), which the agent logs and retries at the next interval.
 
@@ -57,6 +64,10 @@ lock (network, Git, configuration), which the agent logs and retries at the next
 `Agent` runs cycles one at a time. A trigger during a running cycle sets a flag, and the loop runs exactly one more
 cycle afterwards, however many triggers came in. The next poll is scheduled after a cycle ends, so a slow deployment
 never overlaps with a poll. `stop()` closes the webhook, clears the timer and waits for the running cycle.
+
+`Fleet` holds one agent per workspace of a configuration file with a `workspaces` list. The agents do not start
+receivers of their own; the fleet runs one, judges each delivery once with the shared secret and triggers the agents
+whose repository and ref match. Workspaces never wait for each other.
 
 ## Commands and the shell
 

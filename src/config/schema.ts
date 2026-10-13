@@ -15,6 +15,7 @@ export type LogFormat = 'text' | 'json';
 export type NotificationType = 'slack' | 'discord' | 'webhook';
 export type NotificationEvent = 'success' | 'failure' | 'rollback';
 export type InstallWhen = 'changed' | 'always';
+export type WorkspaceStrategy = 'in-place' | 'blue-green';
 
 export interface RepoConfig {
   /** HTTPS or SSH URL of the repository. */
@@ -56,6 +57,11 @@ export interface WorkspaceConfig {
   path: string;
   shallow: boolean;
   install: InstallConfig;
+  /**
+   * "in-place" updates the checkout at path. "blue-green" keeps two checkouts, path.blue and path.green, prepares the
+   * idle one and points the symlink at path to it; a rollback only moves the link back.
+   */
+  strategy: WorkspaceStrategy;
 }
 
 export interface ServiceConfig {
@@ -110,6 +116,10 @@ export interface WebhookConfig {
   path: string;
   /** GitHub webhook secret or GitLab secret token; requests without the right one are rejected. */
   secret?: string;
+  /** Path of the status endpoint on the same server (GET, JSON); off when not set. */
+  statusPath?: string;
+  /** Bearer token for the status endpoint; required when the server listens on more than the loopback interface. */
+  statusToken?: string;
 }
 
 export interface NotificationConfig {
@@ -470,6 +480,7 @@ const readTrack = (r: Reader): TrackConfig => {
 const readWorkspace = (r: Reader): WorkspaceConfig => ({
   path: r.required('workspace.path'),
   shallow: r.boolean('workspace.shallow', false),
+  strategy: r.choice('workspace.strategy', ['in-place', 'blue-green'] as const, 'in-place'),
   install: {
     enabled: r.boolean('workspace.install.enabled', false),
     command: r.string('workspace.install.command', 'npm ci') ?? 'npm ci',
@@ -488,6 +499,10 @@ const readHooks = (r: Reader): HooksConfig => {
 };
 
 const WEBHOOK_PATH = /^\/[\w./-]*$/;
+
+/** Host names that only accept connections from the same machine. */
+export const isLoopback = (host: string): boolean =>
+  host === 'localhost' || host === '::1' || /^127(?:\.\d{1,3}){3}$/.test(host);
 
 const readWebhook = (r: Reader): WebhookConfig => {
   const webhook: WebhookConfig = {
@@ -509,6 +524,29 @@ const readWebhook = (r: Reader): WebhookConfig => {
       'webhook.secret',
       `is required when the webhook is enabled and must have at least ${MIN_WEBHOOK_SECRET} characters`
     );
+  }
+  const statusPath = r.string(
+    'webhook.statusPath',
+    undefined,
+    WEBHOOK_PATH,
+    'must start with / and contain no spaces or query'
+  );
+  const statusToken = r.string('webhook.statusToken');
+  if (statusPath !== undefined) {
+    webhook.statusPath = statusPath;
+    if (statusPath === webhook.path) {
+      r.issue('webhook.statusPath', 'must differ from webhook.path');
+    }
+  }
+  if (statusToken !== undefined) {
+    webhook.statusToken = statusToken;
+    if (statusToken.length < MIN_WEBHOOK_SECRET) {
+      r.issue('webhook.statusToken', `must have at least ${MIN_WEBHOOK_SECRET} characters`);
+    }
+  }
+  if (statusPath !== undefined && statusToken === undefined && !isLoopback(webhook.host)) {
+    // Commits and repository names are nobody else's business.
+    r.issue('webhook.statusToken', `is required when the status endpoint listens on ${webhook.host}`);
   }
   return webhook;
 };
@@ -657,8 +695,170 @@ export const parseConfig = (input: unknown): ConfigResult => {
   if (raw.version !== undefined && raw.version !== CONFIG_VERSION) {
     return { ok: false, issues: [{ path: 'version', message: `must be ${CONFIG_VERSION} (or 2 to migrate)` }] };
   }
+  if ('workspaces' in raw) {
+    return {
+      ok: false,
+      issues: [{ path: 'workspaces', message: 'holds several workspaces; read it with parseConfigSet' }],
+    };
+  }
   const { config, issues } = readConfig(raw);
   return issues.length > 0 ? { ok: false, issues } : { ok: true, config, migrated };
+};
+
+/** One workspace of a configuration file, with the name it is addressed by. */
+export interface WorkspaceEntry {
+  name: string;
+  config: UpdaterConfig;
+}
+
+/** Everything a configuration file describes: one workspace, or several sharing one webhook receiver and log. */
+export interface ConfigSet {
+  /** True when the file lists its workspaces under "workspaces". */
+  multiple: boolean;
+  workspaces: WorkspaceEntry[];
+  webhook: WebhookConfig;
+  logging: LoggingConfig;
+}
+
+export type ConfigSetResult = { ok: true; set: ConfigSet; migrated: boolean } | { ok: false; issues: ConfigIssue[] };
+
+/** Name of the workspace in a file without a "workspaces" list. */
+export const DEFAULT_WORKSPACE = 'default';
+
+/** Sections every workspace of a file shares; they belong at the top level. */
+const SHARED_SECTIONS = ['webhook', 'logging'];
+const SET_KEYS = new Set(['version', 'defaults', 'workspaces', ...SHARED_SECTIONS]);
+
+/** Objects are merged key by key; anything else, lists included, is replaced. */
+const merge = (base: unknown, override: unknown): unknown => {
+  if (!isObject(base) || !isObject(override)) {
+    return override === undefined ? base : override;
+  }
+  const keys = new Set([...Object.keys(base), ...Object.keys(override)]);
+  return Object.fromEntries([...keys].map((key) => [key, merge(base[key], override[key])]));
+};
+
+const readEntry = (
+  entry: unknown,
+  index: number,
+  top: Raw,
+  issues: ConfigIssue[]
+): { name: string; config: UpdaterConfig } | undefined => {
+  const at = `workspaces.${index}`;
+  if (!isObject(entry)) {
+    issues.push({ path: at, message: 'must be an object' });
+    return undefined;
+  }
+  const { name, ...rest } = entry;
+  if (typeof name !== 'string' || !NAME.test(name)) {
+    issues.push({ path: `${at}.name`, message: 'is required and may only contain letters, digits and . _ - @ :' });
+  }
+  for (const key of SHARED_SECTIONS) {
+    if (key in entry) {
+      issues.push({ path: `${at}.${key}`, message: 'is shared by all workspaces; set it at the top level' });
+    }
+  }
+  const raw = merge(top.defaults ?? {}, rest) as Raw;
+  for (const key of SHARED_SECTIONS) {
+    raw[key] = top[key];
+  }
+  const result = readConfig(raw);
+  for (const issue of result.issues) {
+    // Problems in the shared sections are reported once, at their own place.
+    const shared = SHARED_SECTIONS.some((key) => issue.path === key || issue.path.startsWith(`${key}.`));
+    const path = shared ? issue.path : [at, issue.path].filter(Boolean).join('.');
+    if (!issues.some((known) => known.path === path && known.message === issue.message)) {
+      issues.push({ path, message: issue.message });
+    }
+  }
+  return { name: typeof name === 'string' ? name : '', config: result.config };
+};
+
+/** A file without "workspaces": its single workspace, named "default". */
+const singleSet = (input: unknown): ConfigSetResult => {
+  const single = parseConfig(input);
+  if (!single.ok) {
+    return single;
+  }
+  const { config } = single;
+  return {
+    ok: true,
+    migrated: single.migrated,
+    set: {
+      multiple: false,
+      workspaces: [{ name: DEFAULT_WORKSPACE, config }],
+      webhook: config.webhook,
+      logging: config.logging,
+    },
+  };
+};
+
+/** Keys outside the workspaces that do not belong there. */
+const checkTopLevel = (input: Raw, issues: ConfigIssue[]): void => {
+  for (const key of Object.keys(input).filter((name) => !SET_KEYS.has(name))) {
+    issues.push({ path: key, message: 'belongs inside a workspace or in "defaults"' });
+  }
+  if (input.defaults !== undefined && !isObject(input.defaults)) {
+    issues.push({ path: 'defaults', message: 'must be an object' });
+  }
+  for (const key of SHARED_SECTIONS) {
+    if (isObject(input.defaults) && key in input.defaults) {
+      issues.push({ path: `defaults.${key}`, message: 'is shared by all workspaces; set it at the top level' });
+    }
+  }
+};
+
+/** Two workspaces may share neither a name nor a directory. */
+const checkDuplicates = (entries: readonly (WorkspaceEntry | undefined)[], issues: ConfigIssue[]): void => {
+  const names = new Map<string, number>();
+  const paths = new Map<string, number>();
+  entries.forEach((entry, index) => {
+    if (!entry) {
+      return;
+    }
+    for (const [map, value, field] of [
+      [names, entry.name, 'name'],
+      [paths, entry.config.workspace.path, 'workspace.path'],
+    ] as const) {
+      const earlier = map.get(value);
+      if (value && earlier !== undefined) {
+        issues.push({ path: `workspaces.${index}.${field}`, message: `is already used by workspaces.${earlier}` });
+      }
+      map.set(value, index);
+    }
+  });
+};
+
+/**
+ * Validates a configuration file that holds one workspace (any supported version) or a "workspaces" list. In a list,
+ * each entry is merged over "defaults" and shares the top-level webhook and logging sections.
+ */
+export const parseConfigSet = (input: unknown): ConfigSetResult => {
+  if (!isObject(input) || !('workspaces' in input)) {
+    return singleSet(input);
+  }
+  if (input.version !== undefined && input.version !== CONFIG_VERSION) {
+    return { ok: false, issues: [{ path: 'version', message: `must be ${CONFIG_VERSION}` }] };
+  }
+  const issues: ConfigIssue[] = [];
+  checkTopLevel(input, issues);
+  const list = input.workspaces;
+  if (!Array.isArray(list) || list.length === 0) {
+    issues.push({ path: 'workspaces', message: 'must be a list with at least one workspace' });
+    return { ok: false, issues };
+  }
+  const entries = list.map((entry, index) => readEntry(entry, index, input, issues));
+  checkDuplicates(entries, issues);
+  const workspaces = entries.filter((entry): entry is WorkspaceEntry => entry !== undefined);
+  const first = workspaces[0];
+  if (issues.length > 0 || !first) {
+    return { ok: false, issues: issues.length > 0 ? issues : [{ path: 'workspaces', message: 'is invalid' }] };
+  }
+  return {
+    ok: true,
+    migrated: false,
+    set: { multiple: true, workspaces, webhook: first.config.webhook, logging: first.config.logging },
+  };
 };
 
 /** Typed helper for configuration written in JavaScript or TypeScript. */

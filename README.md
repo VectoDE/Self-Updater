@@ -31,7 +31,10 @@ checks the file with the same code the updater runs.
 - [Configuration](#configuration)
 - [Commands](#commands)
 - [Run it permanently](#run-it-permanently)
+- [Several workspaces](#several-workspaces)
+- [Blue-green deployments](#blue-green-deployments)
 - [Webhooks](#webhooks)
+- [Status endpoint](#status-endpoint)
 - [Signed releases only](#signed-releases-only)
 - [Use it from code](#use-it-from-code)
 - [Upgrading from self-updater 1.x to 3.x](#upgrading-from-self-updater-1x-to-3x)
@@ -144,6 +147,7 @@ In tag mode the newest version wins by SemVer order, not by date: `v1.10.0` is n
 | ----------------- | ---------- | ------------------------------------------------------------------------------------------------------------------ |
 | `path`            | (required) | Directory of the deployed checkout; created on the first run                                                       |
 | `shallow`         | `false`    | Fetch only the target commit. Saves space, but the install step cannot see changes                                 |
+| `strategy`        | `in-place` | `in-place` updates the checkout at `path`; `blue-green` keeps two, see [Blue-green](#blue-green-deployments)       |
 | `install.enabled` | `false`    | Run the install command                                                                                            |
 | `install.command` | `npm ci`   | Install command, run in the workspace                                                                              |
 | `install.when`    | `changed`  | `changed` runs it when a watched file changed, `always` after every update                                         |
@@ -211,6 +215,8 @@ Set `url`, `command` or both. Without a `healthCheck` section, a successful rest
 | `webhook.port`             | `9000`                |                                                                             |
 | `webhook.path`             | `/hooks/self-updater` |                                                                             |
 | `webhook.secret`           |                       | Required when the webhook is on, at least 32 characters                     |
+| `webhook.statusPath`       |                       | Path of the [status endpoint](#status-endpoint); off when not set           |
+| `webhook.statusToken`      |                       | Bearer token for it; required when `host` is not a loopback address         |
 
 Polling can only be turned off while the webhook is on. Keeping both on is a good idea: polling catches deliveries
 that got lost.
@@ -254,6 +260,8 @@ replaced with `***` in every line.
 | `self-updater migrate`                         | Converts a 1.x or 2.x configuration file; keeps the original as `.bak`  |
 
 Every command takes `--config <file>`, `--env-file <file>` and `--json` (machine-readable output and JSON logs).
+With [several workspaces](#several-workspaces), `update`, `status`, `rollback` and `start` take `--workspace <name>`
+(`-w`) to work on one of them; `rollback` needs it.
 
 Exit codes: `0` done (also "up to date" and "skipped"), `1` the deployment failed, `2` usage or configuration error,
 `3` the deployment failed and was rolled back.
@@ -296,6 +304,69 @@ The image runs as the unprivileged `node` user and contains Git, OpenSSH, the Do
 socket is only needed for the `docker` and `compose` service types; access to it is equivalent to root on the host,
 so only mount it on machines where that is acceptable. Paths in the configuration are paths inside the container.
 
+## Several workspaces
+
+One updater can keep several applications current. List them under `workspaces`; each entry is a normal
+configuration plus a `name`, merged over the optional `defaults`. The `webhook` and `logging` sections sit at the top
+and are shared:
+
+```json
+{
+  "version": 3,
+  "defaults": {
+    "service": { "type": "pm2" },
+    "workspace": { "install": { "enabled": true } },
+    "notifications": [{ "type": "slack", "url": "${SLACK_WEBHOOK_URL}", "events": ["failure", "rollback"] }]
+  },
+  "webhook": { "enabled": true, "secret": "${SELF_UPDATER_WEBHOOK_SECRET}" },
+  "workspaces": [
+    {
+      "name": "shop",
+      "repo": { "url": "https://github.com/acme/shop.git" },
+      "workspace": { "path": "/srv/shop" },
+      "service": { "name": "shop" }
+    },
+    {
+      "name": "api",
+      "repo": { "url": "https://github.com/acme/api.git", "branch": "release" },
+      "workspace": { "path": "/srv/api", "strategy": "blue-green" },
+      "service": { "name": "api" },
+      "schedule": { "intervalSeconds": 30 }
+    }
+  ]
+}
+```
+
+- Objects merge key by key; lists such as `notifications` replace the default list as a whole.
+- Names and workspace paths must be unique. Each workspace keeps its state in `updater.state.<name>.json`.
+- `start` runs one agent per workspace. They poll on their own schedules and deploy independently; one receiver takes
+  all deliveries and passes each to the workspaces whose repository (`owner/name` from the payload) and branch or tag
+  match.
+- `update` goes through the workspaces one after the other. A broken one does not stop the rest; the exit code is the
+  worst result. Log lines carry `workspace=<name>`.
+
+A file without `workspaces` works as before.
+
+## Blue-green deployments
+
+With `"strategy": "blue-green"` the updater keeps two checkouts next to `workspace.path`: `<path>.blue` and
+`<path>.green`. `workspace.path` itself becomes a symbolic link (a junction on Windows) to the live one. Point your
+service at `workspace.path`.
+
+1. Fetch, check the signature, run the pre-update hook, check out and install, all in the idle slot. The live
+   version keeps running; if one of these steps fails, nothing that runs has changed.
+2. Move the link to the idle slot, restart, run the health check and the post-update hook.
+3. If that fails and rollback is on, the link moves back and the service restarts. The old slot was never touched,
+   so there is nothing to reinstall.
+
+On Linux and macOS the new link replaces the old one in a single rename. Windows cannot rename over a junction, so
+there the old one is removed first; for a moment the path does not exist.
+
+The install step compares against the commit the idle slot had before, so it only runs when that slot's own
+dependencies are out of date. A manual `rollback` moves the link back to the other slot. The first run takes over an
+empty directory at `workspace.path`, but never a checkout: move an existing one to `<path>.blue`, remove the
+directory and the updater picks it up.
+
 ## Webhooks
 
 1. Turn the receiver on and keep the secret in the environment:
@@ -320,6 +391,31 @@ The receiver accepts at most 1 MB, checks the signature or token in constant tim
 reacts to pushes to the tracked branch or matching tags. A delivery never decides what gets deployed: it only starts a
 cycle, which asks the repository for the target like a poll does. Several deliveries during a running deployment lead
 to one more cycle, not one per delivery.
+
+## Status endpoint
+
+With `webhook.statusPath`, the receiver also answers `GET` on that path with JSON about every workspace:
+
+```json
+{
+  "workspaces": [
+    {
+      "name": "api",
+      "repository": "acme/api",
+      "tracking": { "mode": "branch", "ref": "release" },
+      "strategy": "blue-green",
+      "slot": "green",
+      "updating": false,
+      "deployed": { "commit": "4f7a918…", "ref": "release", "at": "2026-10-13T09:12:44.000Z" },
+      "lastAttempt": { "outcome": "deployed", "commit": "4f7a918…", "at": "2026-10-13T09:12:44.000Z" }
+    }
+  ]
+}
+```
+
+It leaves out error messages and command output, which can contain internal details. On `127.0.0.1` it needs no
+token. On any other address `webhook.statusToken` is required, and requests must send
+`Authorization: Bearer <token>`.
 
 ## Signed releases only
 

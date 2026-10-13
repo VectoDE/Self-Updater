@@ -6,7 +6,7 @@ import { existsSync, readFileSync, writeFileSync } from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { describe, expect, it } from 'vitest';
-import { parseConfig, type ServiceConfig } from '../src/config/schema.js';
+import { parseConfig, parseConfigSet, type ServiceConfig } from '../src/config/schema.js';
 import { isSelfUpdaterError, messageOf, SelfUpdaterError } from '../src/errors.js';
 import { acquireLock } from '../src/lock.js';
 import { createEvent, notify, payloadFor, summarize } from '../src/notify.js';
@@ -212,5 +212,11 @@ describe('configuration of examples', () => {
       const result = parseConfig(JSON.parse(source));
       expect(result.ok ? [] : result.issues, name).toEqual([]);
     }
+    const file = path.join(import.meta.dirname, '..', 'examples', 'workspaces.json');
+    const source = readFileSync(file, 'utf8')
+      .replaceAll(/\$\{[A-Z_]+_URL\}/g, 'https://example.com/hook')
+      .replaceAll(/\$\{[A-Z_]+\}/g, 'x'.repeat(32));
+    const set = parseConfigSet(JSON.parse(source));
+    expect(set.ok ? [] : set.issues, 'workspaces').toEqual([]);
   });
 });
