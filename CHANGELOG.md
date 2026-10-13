@@ -5,6 +5,12 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+## [4.1.1] - 2026-10-13
+
+### Changed
+
+- fix: keep "${" in substituted environment values (#23)
+
 ## [4.1.0] - 2026-10-13
 
 ### Changed
@@ -88,7 +94,8 @@ with Git fallback, Docker Compose, hooks, `run-once`, `status` and `validate`. N
 
 First release as `self-updater`.
 
-[Unreleased]: https://github.com/VectoDE/Self-Updater/compare/v4.1.0...HEAD
+[Unreleased]: https://github.com/VectoDE/Self-Updater/compare/v4.1.1...HEAD
+[4.1.1]: https://github.com/VectoDE/Self-Updater/compare/v4.1.0...v4.1.1
 [4.1.0]: https://github.com/VectoDE/Self-Updater/compare/v4.0.1...v4.1.0
 [4.0.1]: https://github.com/VectoDE/Self-Updater/compare/v4.0.0...v4.0.1
 [4.0.0]: https://github.com/VectoDE/Self-Updater/compare/v1.0.1...v4.0.0
