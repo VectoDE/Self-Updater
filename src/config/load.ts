@@ -14,7 +14,8 @@ export const resolveConfigPath = (file?: string, env: NodeJS.ProcessEnv = proces
 /** The state file lives next to the configuration. */
 export const statePathFor = (configPath: string): string => path.join(path.dirname(configPath), 'updater.state.json');
 
-const VARIABLE = /\$\{([A-Z_][A-Z\d_]*)(?::-([^$}]*))?\}/gi;
+// "$${" (an escaped "${") or a variable. One pass over the text, so substituted values are never read again.
+const VARIABLE = /\$\$\{|\$\{([A-Z_][A-Z\d_]*)(?::-([^$}]*))?\}/gi;
 
 /**
  * Replaces ${NAME} and ${NAME:-default} in every string, so tokens and secrets can stay in the environment. A
@@ -24,22 +25,20 @@ export const expandEnvironment = (value: unknown, env: NodeJS.ProcessEnv = proce
   const missing = new Set<string>();
   const expand = (item: unknown): unknown => {
     if (typeof item === 'string') {
-      return item
-        .replaceAll(VARIABLE, (match, name: string, fallback: string | undefined, offset: number) => {
-          if (offset > 0 && item[offset - 1] === '$') {
-            return match;
-          }
-          const resolved = env[name];
-          if (resolved !== undefined && resolved !== '') {
-            return resolved;
-          }
-          if (fallback !== undefined) {
-            return fallback;
-          }
-          missing.add(name);
-          return '';
-        })
-        .replaceAll('$${', '${');
+      return item.replaceAll(VARIABLE, (_match, name: string | undefined, fallback: string | undefined) => {
+        if (name === undefined) {
+          return '${';
+        }
+        const resolved = env[name];
+        if (resolved !== undefined && resolved !== '') {
+          return resolved;
+        }
+        if (fallback !== undefined) {
+          return fallback;
+        }
+        missing.add(name);
+        return '';
+      });
     }
     if (Array.isArray(item)) {
       return item.map((entry) => expand(entry));
