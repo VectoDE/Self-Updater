@@ -1,3 +1,7 @@
+// SPDX-FileCopyrightText: 2025 Vecto <https://github.com/VectoDE>
+//
+// SPDX-License-Identifier: Apache-2.0
+
 import { existsSync, readFileSync } from 'node:fs';
 import { mkdir, rename, writeFile } from 'node:fs/promises';
 import path from 'node:path';

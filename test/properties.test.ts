@@ -1,3 +1,7 @@
+// SPDX-FileCopyrightText: 2025 Vecto <https://github.com/VectoDE>
+//
+// SPDX-License-Identifier: Apache-2.0
+
 import { createHmac } from 'node:crypto';
 import fc from 'fast-check';
 import { describe, expect, it } from 'vitest';

@@ -1,3 +1,7 @@
+# SPDX-FileCopyrightText: 2025 Vecto <https://github.com/VectoDE>
+#
+# SPDX-License-Identifier: Apache-2.0
+
 # Every commit in a pull request must be signed off (Developer Certificate of Origin): the author certifies the right
 # to submit it under the project's license. Commits by bots such as Dependabot are exempt.
 name: DCO

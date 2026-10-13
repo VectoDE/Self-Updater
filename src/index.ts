@@ -1,3 +1,7 @@
+// SPDX-FileCopyrightText: 2025 Vecto <https://github.com/VectoDE>
+//
+// SPDX-License-Identifier: Apache-2.0
+
 // Public API of @vectode/self-updater. The CLI is a thin layer over these.
 export { Agent, type AgentOptions } from './agent.js';
 export {

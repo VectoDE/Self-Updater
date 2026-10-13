@@ -1,3 +1,7 @@
+// SPDX-FileCopyrightText: 2025 Vecto <https://github.com/VectoDE>
+//
+// SPDX-License-Identifier: Apache-2.0
+
 import { createHash, createHmac, timingSafeEqual } from 'node:crypto';
 import { createServer, type IncomingMessage, type Server } from 'node:http';
 import type { AddressInfo } from 'node:net';

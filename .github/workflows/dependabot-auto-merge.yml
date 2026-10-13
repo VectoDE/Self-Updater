@@ -1,3 +1,7 @@
+# SPDX-FileCopyrightText: 2025 Vecto <https://github.com/VectoDE>
+#
+# SPDX-License-Identifier: Apache-2.0
+
 # Keeps dependencies current without manual clicks: Dependabot pull requests for patch and minor updates are set to
 # merge on their own once every required check on main has passed. Major updates stay open for a human review.
 name: Dependabot auto-merge

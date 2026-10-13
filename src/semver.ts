@@ -1,3 +1,7 @@
+// SPDX-FileCopyrightText: 2025 Vecto <https://github.com/VectoDE>
+//
+// SPDX-License-Identifier: Apache-2.0
+
 /**
  * Just enough Semantic Versioning 2.0.0 to pick the newest release tag: parsing with an optional prefix such as "v"
  * or "release-", and precedence as the specification defines it. Build metadata is ignored for ordering.

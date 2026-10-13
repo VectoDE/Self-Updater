@@ -1,3 +1,7 @@
+// SPDX-FileCopyrightText: 2025 Vecto <https://github.com/VectoDE>
+//
+// SPDX-License-Identifier: Apache-2.0
+
 // The configuration format (version 3), its defaults, validation and the migration from older formats. No Node.js
 // APIs here: the configuration builder on the project site runs the same checks in the browser.
 

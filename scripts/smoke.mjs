@@ -1,3 +1,7 @@
+// SPDX-FileCopyrightText: 2025 Vecto <https://github.com/VectoDE>
+//
+// SPDX-License-Identifier: Apache-2.0
+
 // Runs the built configuration entry (dist/config.mjs), which must work without Node-only APIs. CI runs it on Node,
 // Deno and Bun: node scripts/smoke.mjs | deno run --allow-read=examples scripts/smoke.mjs | bun scripts/smoke.mjs
 import { readFileSync } from 'node:fs';

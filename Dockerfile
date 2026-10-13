@@ -1,3 +1,7 @@
+# SPDX-FileCopyrightText: 2025 Vecto <https://github.com/VectoDE>
+#
+# SPDX-License-Identifier: Apache-2.0
+
 # Container image of the self-updater agent: ghcr.io/vectode/self-updater
 #
 # The configuration lives in /config (updater.config.json, optional .env); the workspace it deploys is a mounted

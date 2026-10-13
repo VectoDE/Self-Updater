@@ -84,6 +84,29 @@ CI enforces all of these; `npm run check` runs the same checks locally.
 - One topic per pull request. Fill in the template.
 - CI must be green before review.
 
+## Code review
+
+Every change reaches `main` through a pull request, and only a maintainer merges it. The reviewer reads the whole diff
+and checks it against this list before approving:
+
+1. **Purpose.** The pull request says what it changes and why, and links the issue it closes. It does one thing.
+2. **Correctness.** The code does what the description says, including the failure paths: a failed `git`, install,
+   restart or health check leaves the workspace on a known commit, and the state file stays consistent.
+3. **Tests.** New behaviour and every fixed bug have a test that fails without the change. Coverage stays above the
+   thresholds.
+4. **Security.** Input from configuration files, webhooks and the environment is validated; nothing passes it to a
+   shell; secrets never reach logs, errors or notifications; webhook signatures are compared in constant time. Changes
+   to these areas get a second look at `docs/ASSURANCE.md`, which must still be true afterwards.
+5. **Dependencies.** No runtime dependency. A new development dependency is justified in the description and pinned.
+6. **Compatibility.** A change to the configuration format, the CLI or the public API is either backwards compatible
+   or labelled `breaking-change` with migration notes.
+7. **Documentation.** README, `CHANGELOG.md` (under "Unreleased") and the configuration builder match the change.
+8. **Style.** The checks enforce formatting and lint rules; the reviewer looks at names, comments that explain why, and
+   new files carrying the SPDX header.
+
+The reviewer leaves a comment for each point that fails and approves only when none is left. Changes by the maintainer
+go through the same checks, and CI runs them on every pull request.
+
 ## Releases
 
 Every change merged into `main` is released on its own: `.github/workflows/release.yml` checks it again, raises the
@@ -100,3 +123,7 @@ container image to the GitHub Container Registry.
 ## License
 
 By contributing you agree that your contribution is licensed under the [Apache License 2.0](../LICENSE).
+
+Every new source file starts with the SPDX header that the other files carry; the `reuse` check in CI fails without
+it. Add it with `reuse annotate --copyright "Vecto <https://github.com/VectoDE>" --license Apache-2.0 <file>`. Files
+that cannot hold a comment, such as JSON and Markdown, are covered by `REUSE.toml`.

@@ -1,3 +1,7 @@
+# SPDX-FileCopyrightText: 2025 Vecto <https://github.com/VectoDE>
+#
+# SPDX-License-Identifier: Apache-2.0
+
 # systemd unit for the updater itself. Install the package globally, put the configuration in
 # /etc/self-updater/, then: systemctl daemon-reload && systemctl enable --now self-updater
 [Unit]

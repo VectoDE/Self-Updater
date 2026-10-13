@@ -1,3 +1,7 @@
+// SPDX-FileCopyrightText: 2025 Vecto <https://github.com/VectoDE>
+//
+// SPDX-License-Identifier: Apache-2.0
+
 import os from 'node:os';
 import type { NotificationConfig, NotificationEvent } from './config/schema.js';
 import { messageOf } from './errors.js';

@@ -1,3 +1,7 @@
+// SPDX-FileCopyrightText: 2025 Vecto <https://github.com/VectoDE>
+//
+// SPDX-License-Identifier: Apache-2.0
+
 import { spawn } from 'node:child_process';
 import path from 'node:path';
 import process from 'node:process';

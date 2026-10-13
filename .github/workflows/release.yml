@@ -1,3 +1,7 @@
+# SPDX-FileCopyrightText: 2025 Vecto <https://github.com/VectoDE>
+#
+# SPDX-License-Identifier: Apache-2.0
+
 # Every push to main becomes a release: the version is raised (scripts/prepare-release.mjs), the release commit and
 # tag go to main, and the package is built once, signed with a build attestation and published as a GitHub release
 # (tarball and attestation attached), to npm through Trusted Publishing with provenance, to GitHub Packages, and as a

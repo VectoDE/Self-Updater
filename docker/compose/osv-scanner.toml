@@ -1,3 +1,7 @@
+# SPDX-FileCopyrightText: 2025 Vecto <https://github.com/VectoDE>
+#
+# SPDX-License-Identifier: Apache-2.0
+
 # Findings in the Compose build that do not apply, each with the evidence. Remove an entry when it no longer matches.
 
 [[IgnoredVulns]]

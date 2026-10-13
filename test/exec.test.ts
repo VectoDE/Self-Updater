@@ -1,3 +1,7 @@
+// SPDX-FileCopyrightText: 2025 Vecto <https://github.com/VectoDE>
+//
+// SPDX-License-Identifier: Apache-2.0
+
 import { describe, expect, it } from 'vitest';
 import { isSelfUpdaterError } from '../src/errors.js';
 import { describeCommand, run, runChecked } from '../src/exec.js';
