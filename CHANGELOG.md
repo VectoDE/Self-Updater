@@ -5,6 +5,18 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+Repository maintenance only; the package code is unchanged.
+
+### Changed
+
+- Dependabot no longer proposes Node.js majors for the container image; it moves to a new Node.js line on purpose,
+  together with the CI matrix, once that line is LTS.
+
+### Fixed
+
+- CI: `reuse lint` passes on `.bestpractices.json`, and the webhook test for oversized bodies no longer fails with an
+  unhandled `EPIPE` on macOS.
+
 ## [4.2.0] - 2026-10-13
 
 ### Added
