@@ -5,14 +5,8 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
-## [4.1.2] - 2026-10-13
-
 ### Added
 
-- Every source file carries an SPDX license and copyright header; the rest is covered by `REUSE.toml`, and CI checks
-  REUSE compliance.
-- CI builds the npm package twice from separate clones and fails when the tarballs differ.
-- Written code review standards in `CONTRIBUTING.md`.
 - Several workspaces in one configuration file: a `workspaces` list with shared `defaults`, one webhook receiver for
   all of them that routes each delivery by repository and ref, a state file per workspace and `--workspace` (`-w`)
   for `update`, `status`, `rollback` and `start`.
@@ -22,6 +16,15 @@ All notable changes to this project are documented here. The format follows
 - Status endpoint next to the webhook receiver (`webhook.statusPath`, `webhook.statusToken`) that reports what each
   workspace runs, for monitoring systems.
 - The configuration builder offers the strategy and the status endpoint.
+
+## [4.1.2] - 2026-10-13
+
+### Added
+
+- Every source file carries an SPDX license and copyright header; the rest is covered by `REUSE.toml`, and CI checks
+  REUSE compliance.
+- CI builds the npm package twice from separate clones and fails when the tarballs differ.
+- Written code review standards in `CONTRIBUTING.md`.
 
 ## [4.1.1] - 2026-10-13
 
