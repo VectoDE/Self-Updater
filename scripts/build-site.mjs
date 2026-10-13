@@ -1,5 +1,5 @@
-// Bundles the configuration builder into site/dist. With --serve it rebuilds on change and serves on
-// http://localhost:5173.
+// Bundles the configuration builder into site/dist; _headers sets the response headers on Cloudflare Pages. With
+// --serve it rebuilds on change and serves on http://localhost:5173.
 import { copyFile, mkdir, rm } from 'node:fs/promises';
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
@@ -12,7 +12,9 @@ const { version } = JSON.parse(readFileSync(new URL('../package.json', import.me
 
 await rm(outdir, { recursive: true, force: true });
 await mkdir(outdir, { recursive: true });
-await Promise.all(['index.html', 'styles.css'].map((file) => copyFile(`${root}${file}`, `${outdir}/${file}`)));
+await Promise.all(
+  ['index.html', 'styles.css', '_headers'].map((file) => copyFile(`${root}${file}`, `${outdir}/${file}`))
+);
 
 const options = {
   entryPoints: [`${root}src/main.ts`],
