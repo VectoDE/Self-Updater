@@ -20,7 +20,7 @@ machine. Polling works behind any firewall; a GitHub or GitLab webhook makes it 
 - Notifications to Slack, Discord or any JSON webhook
 - No runtime dependencies: Node.js 22 or newer and Git are all it needs
 
-Write a configuration in the browser with the [configuration builder](https://vectode.github.io/Self-Updater/). It
+Write a configuration in the browser with the [configuration builder](https://self-updater.pages.dev/). It
 checks the file with the same code the updater runs.
 
 ## Contents

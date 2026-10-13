@@ -1,10 +1,11 @@
-# Builds the configuration builder and deploys it to GitHub Pages: https://vectode.github.io/Self-Updater/
-name: Configuration builder
+# The configuration builder lives on Cloudflare Pages (https://self-updater.pages.dev/), which sends the security headers
+# from site/_headers. GitHub Pages keeps the old address working with a page that forwards there.
+name: Configuration builder redirect
 
 on:
   push:
     branches: [main]
-    paths: ['src/**', 'site/**', 'scripts/build-site.mjs', 'package*.json', '.github/workflows/pages.yml']
+    paths: ['site/moved.html', '.github/workflows/pages.yml']
   workflow_dispatch:
 
 permissions:
@@ -26,16 +27,11 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
-      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
-        with:
-          node-version-file: .nvmrc
-          cache: npm
-      - run: npm ci --ignore-scripts
-      - run: npm run build:site
+      - run: mkdir -p moved && cp site/moved.html moved/index.html && cp site/moved.html moved/404.html
       - uses: actions/configure-pages@45bfe0192ca1faeb007ade9deae92b16b8254a0d # v6.0.0
       - uses: actions/upload-pages-artifact@fc324d3547104276b827a68afc52ff2a11cc49c9 # v5.0.0
         with:
-          path: site/dist
+          path: moved
 
   deploy:
     name: Deploy
