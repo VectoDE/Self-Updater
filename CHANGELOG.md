@@ -5,6 +5,8 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+## [4.1.0] - 2026-10-13
+
 ### Changed
 
 - The configuration builder moved to [self-updater.pages.dev](https://self-updater.pages.dev/), which sends a strict
@@ -86,7 +88,8 @@ with Git fallback, Docker Compose, hooks, `run-once`, `status` and `validate`. N
 
 First release as `self-updater`.
 
-[Unreleased]: https://github.com/VectoDE/Self-Updater/compare/v4.0.1...HEAD
+[Unreleased]: https://github.com/VectoDE/Self-Updater/compare/v4.1.0...HEAD
+[4.1.0]: https://github.com/VectoDE/Self-Updater/compare/v4.0.1...v4.1.0
 [4.0.1]: https://github.com/VectoDE/Self-Updater/compare/v4.0.0...v4.0.1
 [4.0.0]: https://github.com/VectoDE/Self-Updater/compare/v1.0.1...v4.0.0
 [3.0.0]: https://www.npmjs.com/package/self-updater/v/3.0.0
