@@ -21,3 +21,11 @@ path = [
 ]
 SPDX-FileCopyrightText = "2025 Vecto <https://github.com/VectoDE>"
 SPDX-License-Identifier = "Apache-2.0"
+
+# The OpenSSF Best Practices answers quote SPDX header lines in their justifications; "override" keeps REUSE from
+# reading those quotes as the file's own license.
+[[annotations]]
+path = ".bestpractices.json"
+precedence = "override"
+SPDX-FileCopyrightText = "2025 Vecto <https://github.com/VectoDE>"
+SPDX-License-Identifier = "Apache-2.0"

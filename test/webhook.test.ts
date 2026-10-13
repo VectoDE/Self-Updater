@@ -167,6 +167,8 @@ describe('startWebhookServer', () => {
           path: '/hooks/self-updater',
           method: 'POST',
           headers: { 'x-github-event': 'push' },
+          // A connection of its own: the server answers and closes it while the body is still being written.
+          agent: false,
         },
         (response) => {
           resolve(response.statusCode ?? 0);
@@ -174,6 +176,8 @@ describe('startWebhookServer', () => {
         }
       );
       req.on('error', reject);
+      // Writing the rest of the body then fails with EPIPE or ECONNRESET, also after the answer has arrived.
+      req.on('socket', (socket) => socket.on('error', () => undefined));
       req.end(Buffer.alloc(2 * 1024 * 1024, 'a'));
     }).catch(() => 413);
     expect(status).toBe(413);
