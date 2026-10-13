@@ -5,6 +5,8 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+## [4.2.1] - 2026-10-13
+
 Repository maintenance only; the package code is unchanged.
 
 ### Changed
@@ -130,7 +132,8 @@ with Git fallback, Docker Compose, hooks, `run-once`, `status` and `validate`. N
 
 First release as `self-updater`.
 
-[Unreleased]: https://github.com/VectoDE/Self-Updater/compare/v4.2.0...HEAD
+[Unreleased]: https://github.com/VectoDE/Self-Updater/compare/v4.2.1...HEAD
+[4.2.1]: https://github.com/VectoDE/Self-Updater/compare/v4.2.0...v4.2.1
 [4.2.0]: https://github.com/VectoDE/Self-Updater/compare/v4.1.2...v4.2.0
 [4.1.2]: https://github.com/VectoDE/Self-Updater/compare/v4.1.1...v4.1.2
 [4.1.1]: https://github.com/VectoDE/Self-Updater/compare/v4.1.0...v4.1.1

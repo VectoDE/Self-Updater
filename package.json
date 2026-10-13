@@ -1,6 +1,6 @@
 {
   "name": "@vectode/self-updater",
-  "version": "4.2.0",
+  "version": "4.2.1",
   "description": "Keeps a server checkout in sync with its Git repository: deploys new commits or release tags, restarts PM2, Docker, Compose or systemd services, checks health and rolls back on failure. Polling or webhooks, no runtime dependencies.",
   "keywords": [
     "deploy",
