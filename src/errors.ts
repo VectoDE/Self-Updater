@@ -1,3 +1,7 @@
+// SPDX-FileCopyrightText: 2025 Vecto <https://github.com/VectoDE>
+//
+// SPDX-License-Identifier: Apache-2.0
+
 /** Stable error codes, so scripts and the CLI can react to a failure without parsing messages. */
 export type ErrorCode =
   | 'CONFIG_NOT_FOUND'

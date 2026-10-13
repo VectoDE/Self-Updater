@@ -1,3 +1,7 @@
+# SPDX-FileCopyrightText: 2025 Vecto <https://github.com/VectoDE>
+#
+# SPDX-License-Identifier: Apache-2.0
+
 name: CI
 
 on:
@@ -219,3 +223,44 @@ jobs:
       - run: npm ci --ignore-scripts
       - run: npm audit --audit-level=moderate
       - run: npm audit signatures
+
+  reuse:
+    name: License and copyright headers
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: step-security/harden-runner@ccd8616d44fd3846e67624a50d5aad6d37bf2d25 # v2.22.1
+        with:
+          egress-policy: audit
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      # Every file names its license and copyright holder, in an SPDX header or in REUSE.toml.
+      - uses: fsfe/reuse-action@676e2d560c9a403aa252096d99fcab3e1132b0f5 # v6.0.0
+
+  reproducible:
+    name: Reproducible package
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: step-security/harden-runner@ccd8616d44fd3846e67624a50d5aad6d37bf2d25 # v2.22.1
+        with:
+          egress-policy: audit
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      # Two builds from separate clones in different directories must give the same npm tarball, byte for byte.
+      - name: Build the package twice and compare
+        run: |
+          git clone --quiet --no-local . "$RUNNER_TEMP/second"
+          for dir in "$GITHUB_WORKSPACE" "$RUNNER_TEMP/second"; do
+            (cd "$dir" && mkdir -p .pack && npm ci --ignore-scripts --no-audit --no-fund && npm pack --pack-destination "$dir/.pack")
+          done
+          first=$(sha256sum "$GITHUB_WORKSPACE"/.pack/*.tgz | cut -d' ' -f1)
+          second=$(sha256sum "$RUNNER_TEMP"/second/.pack/*.tgz | cut -d' ' -f1)
+          echo "first:  $first" && echo "second: $second"
+          test "$first" = "$second"

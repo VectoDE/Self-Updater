@@ -1,3 +1,7 @@
+// SPDX-FileCopyrightText: 2025 Vecto <https://github.com/VectoDE>
+//
+// SPDX-License-Identifier: Apache-2.0
+
 // Bundles the configuration builder into site/dist; _headers sets the response headers on Cloudflare Pages. With
 // --serve it rebuilds on change and serves on http://localhost:5173.
 import { copyFile, mkdir, rm } from 'node:fs/promises';

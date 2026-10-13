@@ -1,3 +1,7 @@
+# SPDX-FileCopyrightText: 2025 Vecto <https://github.com/VectoDE>
+#
+# SPDX-License-Identifier: Apache-2.0
+
 # The configuration builder lives on Cloudflare Pages (https://self-updater.pages.dev/), which sends the security headers
 # from site/_headers. GitHub Pages keeps the old address working with a page that forwards there.
 name: Configuration builder redirect

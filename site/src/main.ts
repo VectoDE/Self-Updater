@@ -1,3 +1,7 @@
+// SPDX-FileCopyrightText: 2025 Vecto <https://github.com/VectoDE>
+//
+// SPDX-License-Identifier: Apache-2.0
+
 // Configuration builder: turns the form into an updater.config.json and checks it with the package's own schema.
 import {
   CONFIG_VERSION,

@@ -1,3 +1,7 @@
+// SPDX-FileCopyrightText: 2025 Vecto <https://github.com/VectoDE>
+//
+// SPDX-License-Identifier: Apache-2.0
+
 import path from 'node:path';
 import type { UpdaterConfig } from './config/schema.js';
 import { messageOf, SelfUpdaterError } from './errors.js';

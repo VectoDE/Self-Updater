@@ -1,3 +1,7 @@
+// SPDX-FileCopyrightText: 2025 Vecto <https://github.com/VectoDE>
+//
+// SPDX-License-Identifier: Apache-2.0
+
 // PM2 process file for the updater itself: pm2 start examples/ecosystem.config.cjs && pm2 save
 module.exports = {
   apps: [

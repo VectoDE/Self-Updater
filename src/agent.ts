@@ -1,3 +1,7 @@
+// SPDX-FileCopyrightText: 2025 Vecto <https://github.com/VectoDE>
+//
+// SPDX-License-Identifier: Apache-2.0
+
 import { messageOf } from './errors.js';
 import { type Logger, silentLogger } from './logger.js';
 import type { UpdateResult, Updater } from './updater.js';

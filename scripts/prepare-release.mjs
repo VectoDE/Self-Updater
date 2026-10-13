@@ -1,3 +1,7 @@
+// SPDX-FileCopyrightText: 2025 Vecto <https://github.com/VectoDE>
+//
+// SPDX-License-Identifier: Apache-2.0
+
 // Prepares the next release from the commits on main since the last version tag: picks the version, updates
 // package.json, package-lock.json and CHANGELOG.md, and writes the release notes.
 //

@@ -1,3 +1,7 @@
+# SPDX-FileCopyrightText: 2025 Vecto <https://github.com/VectoDE>
+#
+# SPDX-License-Identifier: Apache-2.0
+
 # Response headers for Cloudflare Pages: https://developers.cloudflare.com/pages/configuration/headers/
 # The builder loads only its own script and stylesheet and sends nothing anywhere.
 /*
