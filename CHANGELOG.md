@@ -5,11 +5,19 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+### Added
+
+- Every source file carries an SPDX license and copyright header; the rest is covered by `REUSE.toml`, and CI checks
+  REUSE compliance.
+- CI builds the npm package twice from separate clones and fails when the tarballs differ.
+- Written code review standards in `CONTRIBUTING.md`.
+
 ## [4.1.1] - 2026-10-13
 
-### Changed
+### Fixed
 
-- fix: keep "${" in substituted environment values (#23)
+- An environment variable whose value contains `$${` is inserted unchanged. Before, the escape was resolved after
+  substitution and the value lost a dollar sign (#23).
 
 ## [4.1.0] - 2026-10-13
 
