@@ -18,6 +18,9 @@ describe('expandEnvironment', () => {
 
   it('keeps escaped references and treats empty values as unset', () => {
     expect(expandEnvironment('$${TOKEN} ${EMPTY:-d}', { TOKEN: 'abc', EMPTY: '' })).toBe('${TOKEN} d');
+    // A value is inserted as it is, even when it looks like an escape.
+    expect(expandEnvironment('${SECRET}', { SECRET: 'a$${b' })).toBe('a$${b');
+    expect(expandEnvironment('$$${X}', { X: 'v' })).toBe('$${X}');
   });
 
   it('lists every missing variable', () => {
