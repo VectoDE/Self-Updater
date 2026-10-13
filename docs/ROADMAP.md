@@ -13,11 +13,11 @@ are welcome in [Discussions](https://github.com/VectoDE/Self-Updater/discussions
 
 ## 4.x
 
-- Several workspaces from one configuration file, for servers that run more than one application.
-- Blue-green deployments: check out into a second directory and switch a symlink, so the old version keeps running
-  until the new one passes its health check.
-- A small status endpoint next to the webhook receiver (current commit, last result) for monitoring systems.
+Done in 4.1: several workspaces from one configuration file, blue-green deployments with a link switch, and a status
+endpoint next to the webhook receiver.
+
 - Microsoft Teams and email (SMTP) as notification targets, if issues ask for them.
+- Run several workspaces in parallel during `update`, if one-after-the-other turns out too slow in practice.
 
 ## Not planned
 

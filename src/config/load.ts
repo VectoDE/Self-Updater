@@ -7,7 +7,14 @@ import { mkdir, rename, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import process from 'node:process';
 import { SelfUpdaterError } from '../errors.js';
-import { formatIssues, parseConfig, type UpdaterConfig } from './schema.js';
+import {
+  type ConfigSet,
+  DEFAULT_WORKSPACE,
+  formatIssues,
+  parseConfig,
+  parseConfigSet,
+  type UpdaterConfig,
+} from './schema.js';
 
 export const DEFAULT_CONFIG_FILE = 'updater.config.json';
 
@@ -15,8 +22,12 @@ export const DEFAULT_CONFIG_FILE = 'updater.config.json';
 export const resolveConfigPath = (file?: string, env: NodeJS.ProcessEnv = process.env): string =>
   path.resolve(file ?? env.SELF_UPDATER_CONFIG ?? DEFAULT_CONFIG_FILE);
 
-/** The state file lives next to the configuration. */
-export const statePathFor = (configPath: string): string => path.join(path.dirname(configPath), 'updater.state.json');
+/** The state file lives next to the configuration; each workspace of a list has its own. */
+export const statePathFor = (configPath: string, workspace = DEFAULT_WORKSPACE): string =>
+  path.join(
+    path.dirname(configPath),
+    workspace === DEFAULT_WORKSPACE ? 'updater.state.json' : `updater.state.${workspace}.json`
+  );
 
 // "$${" (an escaped "${") or a variable. One pass over the text, so substituted values are never read again.
 const VARIABLE = /\$\$\{|\$\{([A-Z_][A-Z\d_]*)(?::-([^$}]*))?\}/gi;
@@ -88,9 +99,7 @@ export interface LoadedConfig {
   migrated: boolean;
 }
 
-/** Reads, expands, validates and resolves a configuration file. */
-export const loadConfig = (file?: string, env: NodeJS.ProcessEnv = process.env): LoadedConfig => {
-  const configPath = resolveConfigPath(file, env);
+const readConfigFile = (configPath: string, env: NodeJS.ProcessEnv): unknown => {
   if (!existsSync(configPath)) {
     throw new SelfUpdaterError(
       'CONFIG_NOT_FOUND',
@@ -103,7 +112,13 @@ export const loadConfig = (file?: string, env: NodeJS.ProcessEnv = process.env):
   } catch (error) {
     throw new SelfUpdaterError('CONFIG_INVALID', `${configPath} is not valid JSON`, { cause: error });
   }
-  const result = parseConfig(expandEnvironment(data, env));
+  return expandEnvironment(data, env);
+};
+
+/** Reads, expands, validates and resolves a configuration file with a single workspace. */
+export const loadConfig = (file?: string, env: NodeJS.ProcessEnv = process.env): LoadedConfig => {
+  const configPath = resolveConfigPath(file, env);
+  const result = parseConfig(readConfigFile(configPath, env));
   if (!result.ok) {
     throw new SelfUpdaterError('CONFIG_INVALID', `${configPath} has problems:\n${formatIssues(result.issues)}`);
   }
@@ -116,4 +131,24 @@ export const writeJsonFile = async (file: string, value: unknown, mode = 0o600):
   const temporary = `${file}.${process.pid}.tmp`;
   await writeFile(temporary, `${JSON.stringify(value, null, 2)}\n`, { mode });
   await rename(temporary, file);
+};
+
+export interface LoadedConfigSet {
+  set: ConfigSet;
+  path: string;
+  migrated: boolean;
+}
+
+/** Like loadConfig, for a file with one workspace or a "workspaces" list. */
+export const loadConfigSet = (file?: string, env: NodeJS.ProcessEnv = process.env): LoadedConfigSet => {
+  const configPath = resolveConfigPath(file, env);
+  const result = parseConfigSet(readConfigFile(configPath, env));
+  if (!result.ok) {
+    throw new SelfUpdaterError('CONFIG_INVALID', `${configPath} has problems:\n${formatIssues(result.issues)}`);
+  }
+  const baseDir = path.dirname(configPath);
+  const workspaces = result.set.workspaces.map(({ name, config }) => ({ name, config: resolvePaths(config, baseDir) }));
+  // The shared log file is resolved like the rest; every workspace carries the same logging section.
+  const logging = workspaces[0]?.config.logging ?? result.set.logging;
+  return { set: { ...result.set, workspaces, logging }, path: configPath, migrated: result.migrated };
 };

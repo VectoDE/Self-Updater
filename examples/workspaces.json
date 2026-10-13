@@ -1,0 +1,69 @@
+{
+  "version": 3,
+  "defaults": {
+    "service": {
+      "type": "pm2"
+    },
+    "workspace": {
+      "install": {
+        "enabled": true,
+        "command": "npm ci --omit=dev"
+      }
+    },
+    "healthCheck": {
+      "retries": 10,
+      "intervalSeconds": 3
+    },
+    "notifications": [
+      {
+        "type": "slack",
+        "url": "${SLACK_WEBHOOK_URL}",
+        "events": ["failure", "rollback"]
+      }
+    ]
+  },
+  "webhook": {
+    "enabled": true,
+    "secret": "${SELF_UPDATER_WEBHOOK_SECRET}",
+    "statusPath": "/status"
+  },
+  "logging": {
+    "format": "json"
+  },
+  "workspaces": [
+    {
+      "name": "shop",
+      "repo": {
+        "url": "https://github.com/acme/shop.git",
+        "token": "${GITHUB_TOKEN}"
+      },
+      "workspace": {
+        "path": "/srv/shop"
+      },
+      "service": {
+        "name": "shop"
+      },
+      "healthCheck": {
+        "url": "http://127.0.0.1:3000/health"
+      }
+    },
+    {
+      "name": "api",
+      "repo": {
+        "url": "https://github.com/acme/api.git",
+        "branch": "release",
+        "token": "${GITHUB_TOKEN}"
+      },
+      "workspace": {
+        "path": "/srv/api",
+        "strategy": "blue-green"
+      },
+      "service": {
+        "name": "api"
+      },
+      "healthCheck": {
+        "url": "http://127.0.0.1:4000/health"
+      }
+    }
+  ]
+}

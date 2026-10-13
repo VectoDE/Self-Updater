@@ -13,6 +13,15 @@ All notable changes to this project are documented here. The format follows
   REUSE compliance.
 - CI builds the npm package twice from separate clones and fails when the tarballs differ.
 - Written code review standards in `CONTRIBUTING.md`.
+- Several workspaces in one configuration file: a `workspaces` list with shared `defaults`, one webhook receiver for
+  all of them that routes each delivery by repository and ref, a state file per workspace and `--workspace` (`-w`)
+  for `update`, `status`, `rollback` and `start`.
+- Blue-green deployments (`workspace.strategy: "blue-green"`): the next version is prepared in a second checkout
+  while the old one runs, a symlink (a junction on Windows) switches between them, and a rollback only moves the link
+  back.
+- Status endpoint next to the webhook receiver (`webhook.statusPath`, `webhook.statusToken`) that reports what each
+  workspace runs, for monitoring systems.
+- The configuration builder offers the strategy and the status endpoint.
 
 ## [4.1.1] - 2026-10-13
 

@@ -26,6 +26,8 @@ export interface LoggerOptions {
   secrets?: readonly (string | undefined)[];
   /** Where lines go; defaults to stderr for warnings and errors, stdout for the rest. */
   write?: (line: string, level: LogLevel) => void;
+  /** Fields added to every line, e.g. the workspace. */
+  fields?: LogFields;
 }
 
 const defaultWrite = (line: string, level: LogLevel) => {
@@ -60,8 +62,9 @@ export class Logger {
   private readonly write: (line: string, level: LogLevel) => void;
   private readonly secrets: string[];
   private readonly jsonSecrets: string[];
+  private readonly fields: LogFields;
 
-  constructor(options: LoggerOptions = {}) {
+  constructor(private readonly options: LoggerOptions = {}) {
     this.level = options.level ?? 'info';
     this.format = options.format ?? 'text';
     this.write = options.write ?? defaultWrite;
@@ -72,9 +75,15 @@ export class Logger {
     // In a JSON line a secret with quotes, backslashes or control characters appears in its escaped form.
     this.jsonSecrets = this.secrets.map((secret) => JSON.stringify(secret).slice(1, -1));
     this.file = options.file;
+    this.fields = options.fields ?? {};
     if (this.file) {
       mkdirSync(path.dirname(this.file), { recursive: true });
     }
+  }
+
+  /** A logger that writes to the same place and adds the fields to every line. */
+  child(fields: LogFields): Logger {
+    return new Logger({ ...this.options, fields: { ...this.fields, ...fields } });
   }
 
   /** Hides every known secret in a string. */
@@ -91,7 +100,7 @@ export class Logger {
       return;
     }
     const time = new Date().toISOString();
-    const entries = Object.entries(fields).filter(([, value]) => value !== undefined);
+    const entries = Object.entries({ ...this.fields, ...fields }).filter(([, value]) => value !== undefined);
     let line: string;
     if (this.format === 'json') {
       const record = Object.fromEntries(

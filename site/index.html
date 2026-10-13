@@ -140,6 +140,14 @@ SPDX-License-Identifier: Apache-2.0
                 <span>Workspace directory</span>
                 <input name="workspace.path" type="text" placeholder="/srv/shop" autocomplete="off" required />
               </label>
+              <label class="field">
+                <span>Strategy</span>
+                <select name="workspace.strategy">
+                  <option value="">Update the directory in place</option>
+                  <option value="blue-green">Blue-green: two checkouts behind a link</option>
+                </select>
+                <small>Blue-green prepares the next version next to the running one and switches a link.</small>
+              </label>
               <label class="check">
                 <input name="workspace.shallow" type="checkbox" /> Shallow fetch (smaller, but no install skipping)
               </label>
@@ -314,6 +322,22 @@ SPDX-License-Identifier: Apache-2.0
                 data-secret
               />
               <small>The same value goes into the webhook settings of GitHub or GitLab.</small>
+            </label>
+            <label class="field" data-when="webhook.enabled">
+              <span>Status path</span>
+              <input name="webhook.statusPath" type="text" placeholder="/status" autocomplete="off" />
+              <small>Optional. Answers GET with what each workspace runs.</small>
+            </label>
+            <label class="field" data-when="webhook.enabled">
+              <span>Status token</span>
+              <input
+                name="webhook.statusToken"
+                type="text"
+                placeholder="${SELF_UPDATER_STATUS_TOKEN}"
+                autocomplete="off"
+                data-secret
+              />
+              <small>Required when the address is not 127.0.0.1.</small>
             </label>
           </div>
         </section>

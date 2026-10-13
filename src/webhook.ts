@@ -5,7 +5,8 @@
 import { createHash, createHmac, timingSafeEqual } from 'node:crypto';
 import { createServer, type IncomingMessage, type Server } from 'node:http';
 import type { AddressInfo } from 'node:net';
-import type { UpdaterConfig } from './config/schema.js';
+import type { UpdaterConfig, WebhookConfig } from './config/schema.js';
+import { projectPathOf } from './git.js';
 import { type Logger, silentLogger } from './logger.js';
 import { tagMatcher } from './semver.js';
 
@@ -33,7 +34,14 @@ export const verifyGitLabToken = (secret: string, header: string | undefined): b
   header !== undefined && timingSafeEqual(digest(secret), digest(header));
 
 export type WebhookVerdict =
-  { accepted: true; reason: string; ref: string } | { accepted: false; status: number; reason: string };
+  | {
+      accepted: true;
+      reason: string;
+      ref: string;
+      /** owner/name of the repository that sent it, when the payload says. */
+      repository?: string;
+    }
+  | { accepted: false; status: number; reason: string };
 
 const header = (request: Pick<IncomingMessage, 'headers'>, name: string): string | undefined => {
   const value = request.headers[name];
@@ -46,11 +54,12 @@ const reject = (status: number, reason: string): Rejection => ({ accepted: false
 
 /** Checks who sent the delivery and whether its event type can carry a deployment; undefined means go on. */
 const authenticate = (
-  config: UpdaterConfig,
+  webhook: WebhookConfig,
+  acceptsReleases: boolean,
   request: Pick<IncomingMessage, 'headers'>,
   body: Buffer
 ): Rejection | undefined => {
-  const secret = config.webhook.secret ?? '';
+  const secret = webhook.secret ?? '';
   const githubEvent = header(request, 'x-github-event');
   if (githubEvent !== undefined) {
     if (!verifyGitHubSignature(secret, body, header(request, 'x-hub-signature-256'))) {
@@ -59,7 +68,7 @@ const authenticate = (
     if (githubEvent === 'ping') {
       return reject(200, 'ping');
     }
-    const relevant = githubEvent === 'push' || (githubEvent === 'release' && config.track.mode === 'tag');
+    const relevant = githubEvent === 'push' || (githubEvent === 'release' && acceptsReleases);
     return relevant ? undefined : reject(202, `event ${githubEvent} ignored`);
   }
   const gitlabEvent = header(request, 'x-gitlab-event');
@@ -73,19 +82,35 @@ const authenticate = (
   return reject(400, 'not a GitHub or GitLab webhook');
 };
 
-/** The ref a push or release event is about. */
-const refOf = (body: Buffer): { ref: string } | Rejection => {
-  let payload: { ref?: unknown; release?: { tag_name?: unknown } };
+interface Payload {
+  ref?: unknown;
+  release?: { tag_name?: unknown };
+  repository?: { full_name?: unknown };
+  project?: { path_with_namespace?: unknown };
+}
+
+/** The ref a push or release event is about, and the repository it came from. */
+const refOf = (body: Buffer): { ref: string; repository?: string } | Rejection => {
+  let payload: Payload;
   try {
-    payload = JSON.parse(body.toString('utf8')) as typeof payload;
+    payload = JSON.parse(body.toString('utf8')) as Payload;
   } catch {
     return reject(400, 'body is not JSON');
   }
+  // GitHub names the repository in repository.full_name, GitLab in project.path_with_namespace.
+  const name = payload.repository?.full_name ?? payload.project?.path_with_namespace;
+  const repository = typeof name === 'string' ? { repository: name } : {};
   if (typeof payload.ref === 'string') {
-    return { ref: payload.ref };
+    return { ref: payload.ref, ...repository };
   }
   const tag = payload.release?.tag_name;
-  return typeof tag === 'string' ? { ref: `refs/tags/${tag}` } : reject(202, 'no ref in the payload');
+  return typeof tag === 'string' ? { ref: `refs/tags/${tag}`, ...repository } : reject(202, 'no ref in the payload');
+};
+
+/** Whether the delivery's repository is the configured one; true when either side does not say. */
+export const isSameRepository = (config: UpdaterConfig, repository: string | undefined): boolean => {
+  const configured = projectPathOf(config.repo.url);
+  return !repository || !configured || configured.toLowerCase() === repository.toLowerCase();
 };
 
 /** Whether a ref is the tracked branch, or a tag matching the pattern in tag mode. */
@@ -105,7 +130,7 @@ export const judgeDelivery = (
   request: Pick<IncomingMessage, 'headers'>,
   body: Buffer
 ): WebhookVerdict => {
-  const rejection = authenticate(config, request, body);
+  const rejection = authenticate(config.webhook, config.track.mode === 'tag', request, body);
   if (rejection) {
     return rejection;
   }
@@ -113,11 +138,49 @@ export const judgeDelivery = (
   if (!('ref' in found)) {
     return found;
   }
-  const { ref } = found;
-  return isTrackedRef(config, ref)
-    ? { accepted: true, reason: 'update scheduled', ref }
-    : reject(202, `${ref} is not tracked`);
+  return isTrackedRef(config, found.ref)
+    ? { accepted: true, reason: 'update scheduled', ...found }
+    : reject(202, `${found.ref} is not tracked`);
 };
+
+/**
+ * The configurations a delivery is for, when several workspaces share one receiver: same repository (when the
+ * payload names it) and a tracked ref.
+ */
+export const workspacesFor = <T extends { config: UpdaterConfig }>(
+  workspaces: readonly T[],
+  verdict: Extract<WebhookVerdict, { accepted: true }>
+): T[] =>
+  workspaces.filter(({ config }) => isSameRepository(config, verdict.repository) && isTrackedRef(config, verdict.ref));
+
+/** judgeDelivery for several workspaces behind one receiver with a shared secret. */
+export const judgeSharedDelivery = (
+  webhook: WebhookConfig,
+  configs: readonly UpdaterConfig[],
+  request: Pick<IncomingMessage, 'headers'>,
+  body: Buffer
+): WebhookVerdict => {
+  const acceptsReleases = configs.some((config) => config.track.mode === 'tag');
+  const rejection = authenticate(webhook, acceptsReleases, request, body);
+  if (rejection) {
+    return rejection;
+  }
+  const found = refOf(body);
+  if (!('ref' in found)) {
+    return found;
+  }
+  const verdict = { accepted: true as const, reason: 'update scheduled', ...found };
+  return workspacesFor(
+    configs.map((config) => ({ config })),
+    verdict
+  ).length > 0
+    ? verdict
+    : reject(202, `${found.ref} is not tracked`);
+};
+
+/** Compares a bearer token in constant time, whatever its length. */
+const bearerMatches = (token: string, authorization: string | undefined): boolean =>
+  authorization !== undefined && timingSafeEqual(digest(`Bearer ${token}`), digest(authorization));
 
 export interface WebhookServer {
   server: Server;
@@ -126,11 +189,23 @@ export interface WebhookServer {
   close: () => Promise<void>;
 }
 
-/** Starts the HTTP endpoint; onTrigger runs for every accepted delivery (the agent collapses bursts). */
-export const startWebhookServer = async (
-  config: UpdaterConfig,
-  onTrigger: (ref: string) => void,
-  options: { logger?: Logger } = {}
+export interface ReceiverOptions {
+  logger?: Logger;
+  /** What the status endpoint (webhook.statusPath) answers with; it is serialized as JSON. */
+  status?: () => unknown;
+}
+
+type Accepted = Extract<WebhookVerdict, { accepted: true }>;
+
+/**
+ * Starts the HTTP endpoint for deliveries and, when webhook.statusPath is set, the status endpoint next to it.
+ * judge decides on each delivery; onAccepted runs after the answer went out (the agents collapse bursts).
+ */
+export const startReceiver = async (
+  webhook: WebhookConfig,
+  judge: (request: IncomingMessage, body: Buffer) => WebhookVerdict,
+  onAccepted: (verdict: Accepted) => void,
+  options: ReceiverOptions = {}
 ): Promise<WebhookServer> => {
   const logger = options.logger ?? silentLogger;
   const server = createServer((request, response) => {
@@ -139,7 +214,22 @@ export const startWebhookServer = async (
       response.end(`${message}\n`);
     };
     const url = new URL(request.url ?? '/', 'http://localhost');
-    if (url.pathname !== config.webhook.path) {
+    if (webhook.statusPath !== undefined && url.pathname === webhook.statusPath) {
+      if (request.method !== 'GET' && request.method !== 'HEAD') {
+        response.setHeader('Allow', 'GET, HEAD');
+        answer(405, 'use GET');
+        return;
+      }
+      if (webhook.statusToken !== undefined && !bearerMatches(webhook.statusToken, header(request, 'authorization'))) {
+        response.setHeader('WWW-Authenticate', 'Bearer');
+        answer(401, 'token does not match');
+        return;
+      }
+      response.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8', 'Cache-Control': 'no-store' });
+      response.end(request.method === 'HEAD' ? undefined : `${JSON.stringify(options.status?.() ?? {}, null, 2)}\n`);
+      return;
+    }
+    if (url.pathname !== webhook.path) {
       answer(404, 'not found');
       return;
     }
@@ -165,11 +255,11 @@ export const startWebhookServer = async (
       if (tooLarge) {
         return;
       }
-      const verdict = judgeDelivery(config, request, Buffer.concat(chunks));
+      const verdict = judge(request, Buffer.concat(chunks));
       if (verdict.accepted) {
-        logger.info('Webhook accepted', { ref: verdict.ref });
+        logger.info('Webhook accepted', { ref: verdict.ref, repository: verdict.repository });
         answer(202, verdict.reason);
-        onTrigger(verdict.ref);
+        onAccepted(verdict);
         return;
       }
       if (verdict.status === 401) {
@@ -186,13 +276,13 @@ export const startWebhookServer = async (
   server.headersTimeout = 15_000;
   await new Promise<void>((resolve, reject) => {
     server.once('error', reject);
-    server.listen(config.webhook.port, config.webhook.host, () => {
+    server.listen(webhook.port, webhook.host, () => {
       server.off('error', reject);
       resolve();
     });
   });
   const { port } = server.address() as AddressInfo;
-  logger.info('Webhook listening', { host: config.webhook.host, port, path: config.webhook.path });
+  logger.info('Webhook listening', { host: webhook.host, port, path: webhook.path, status: webhook.statusPath });
   return {
     server,
     port,
@@ -205,3 +295,18 @@ export const startWebhookServer = async (
       }),
   };
 };
+
+/** Starts the endpoint for one workspace; onTrigger runs for every accepted delivery. */
+export const startWebhookServer = (
+  config: UpdaterConfig,
+  onTrigger: (ref: string) => void,
+  options: ReceiverOptions = {}
+): Promise<WebhookServer> =>
+  startReceiver(
+    config.webhook,
+    (request, body) => judgeDelivery(config, request, body),
+    (verdict) => {
+      onTrigger(verdict.ref);
+    },
+    options
+  );

@@ -5,7 +5,7 @@
 // Runs the built configuration entry (dist/config.mjs), which must work without Node-only APIs. CI runs it on Node,
 // Deno and Bun: node scripts/smoke.mjs | deno run --allow-read=examples scripts/smoke.mjs | bun scripts/smoke.mjs
 import { readFileSync } from 'node:fs';
-import { migrateConfig, newestTag, parseConfig } from '../dist/config.mjs';
+import { migrateConfig, newestTag, parseConfig, parseConfigSet } from '../dist/config.mjs';
 
 const check = (label, condition) => {
   if (!condition) {
@@ -41,3 +41,7 @@ for (const name of ['pm2', 'compose', 'systemd-tags']) {
     .replaceAll(/\$\{[A-Z_]+\}/g, 'x'.repeat(32));
   check(`examples/${name}.json`, parseConfig(JSON.parse(source)).ok);
 }
+const fleet = readFileSync(new URL('../examples/workspaces.json', import.meta.url), 'utf8')
+  .replaceAll(/\$\{[A-Z_]+_URL\}/g, 'https://example.com/hook')
+  .replaceAll(/\$\{[A-Z_]+\}/g, 'x'.repeat(32));
+check('examples/workspaces.json', parseConfigSet(JSON.parse(fleet)).ok);
