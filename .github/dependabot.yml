@@ -40,6 +40,10 @@ updates:
       interval: weekly
       day: monday
     labels: [dependencies, docker]
+    # The image follows the active Node.js LTS line; moving to the next one is a deliberate change with CI on it.
+    ignore:
+      - dependency-name: node
+        update-types: ['version-update:semver-major']
 
   # Compose for the container image, built from source with these versions.
   - package-ecosystem: gomod
