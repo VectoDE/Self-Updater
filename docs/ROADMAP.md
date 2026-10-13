@@ -13,7 +13,7 @@ are welcome in [Discussions](https://github.com/VectoDE/Self-Updater/discussions
 
 ## 4.x
 
-Done in 4.1: several workspaces from one configuration file, blue-green deployments with a link switch, and a status
+Done in 4.2: several workspaces from one configuration file, blue-green deployments with a link switch, and a status
 endpoint next to the webhook receiver.
 
 - Microsoft Teams and email (SMTP) as notification targets, if issues ask for them.
