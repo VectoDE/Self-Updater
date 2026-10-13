@@ -5,14 +5,17 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+### Changed
+
+- The configuration builder moved to [self-updater.pages.dev](https://self-updater.pages.dev/), which sends a strict
+  Content Security Policy, HSTS and the other security headers from `site/_headers`. The old GitHub Pages address
+  forwards there.
+
 ## [4.0.1] - 2026-10-13
 
 ### Changed
 
 - The container image builds Docker Compose with Go 1.27.2.
-- The configuration builder moved to [self-updater.pages.dev](https://self-updater.pages.dev/), which sends a strict
-  Content Security Policy, HSTS and the other security headers from `site/_headers`. The old GitHub Pages address
-  forwards there.
 
 ### Fixed
 
