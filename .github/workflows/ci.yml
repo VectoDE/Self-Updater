@@ -165,7 +165,7 @@ jobs:
           docker run --rm --entrypoint docker self-updater:ci compose version
       - name: Export for the vulnerability scan
         run: docker save self-updater:ci --output "$GITHUB_WORKSPACE/image.tar"
-      - uses: google/osv-scanner-action/osv-scanner-action@a345acffa64b0eaede81a3d9aae6141214d9c8fc # v2.6.0
+      - uses: google/osv-scanner-action/osv-scanner-action@b1d267aea5211fa648d9d442fa64b90dbdcbdd36 # v2.7.0
         with:
           scan-args: |-
             scan
