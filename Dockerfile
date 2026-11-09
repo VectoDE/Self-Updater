@@ -33,7 +33,7 @@ RUN version="$(go list -m -f '{{.Version}}' github.com/docker/compose/v5)" \
       -o /out/docker-compose github.com/docker/compose/v5/cmd
 
 # The Docker CLI from the official image, which is rebuilt with each Go release.
-FROM docker:29.9.0-cli-alpine3.24@sha256:1a4c7cb63513f349bdad01fcc6e0f3f2f67d37b9da86f14dc0d4a0942eecda00 AS docker-cli
+FROM docker:29.9.3-cli-alpine3.24@sha256:2357639ad1ea7d0194134bf3292622fd4e562483966ed674e5d7c945b5f3b28d AS docker-cli
 
 FROM node:24-alpine3.24@sha256:44fce696f38ba8c987c4db89954051000bbd05ffd8d8659ba15ed4a8602e937f
 LABEL org.opencontainers.image.source="https://github.com/VectoDE/Self-Updater" \
