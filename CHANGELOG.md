@@ -5,6 +5,15 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+### Security
+
+- The container image builds Docker Compose with Go 1.27.4 and ships the Docker CLI 29.10.0 (built with Go 1.27.4),
+  which fixes GO-2026-6809 and GO-2026-6859 in the Go standard library.
+- Docker Compose is built with go.opentelemetry.io/otel 1.47.0 (GHSA-q7gw-24fr-5p69), golang.org/x/net 0.62.0
+  (GO-2026-6860, GO-2026-6866) and github.com/klauspost/compress 1.20.2 (GO-2026-6865).
+- `osv-scanner.toml` ignores GHSA-g3hv-75wg-m249 in minimatch 10.2.6 until 2027-02-18: only a major update fixes it,
+  and the copy is a devDependency that never sees untrusted patterns.
+
 ## [4.2.1] - 2026-10-13
 
 Repository maintenance only; the package code is unchanged.

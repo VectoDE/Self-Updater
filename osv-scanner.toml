@@ -1,0 +1,17 @@
+# SPDX-FileCopyrightText: 2026 Vecto <https://github.com/VectoDE>
+#
+# SPDX-License-Identifier: Apache-2.0
+
+# Findings in package-lock.json that cannot be fixed yet, each with the evidence and an end date.
+# Remove an entry as soon as a fixed version can be installed without a major update.
+
+[[IgnoredVulns]]
+id = "GHSA-g3hv-75wg-m249"
+ignoreUntil = 2027-02-18
+reason = """
+minimatch 10.2.6 (CVE-2026-118764, CWE-405, CVSS 4.0 AV:N/AC:L/VA:L, GitHub severity moderate) is the last 10.x release;
+the fix exists only in 11.0.1, a major release that removes makeRe(), the AST class and the RegExp entries of
+Minimatch.set. The 10.2.6 copy is a devDependency only (eslint-plugin-sonarjs 4.2.2 declares minimatch ^10.2.6; eslint, @eslint/config-array and @typescript-eslint/typescript-estree on main as well), so it is not part of the published package.
+The amplification needs an attacker-controlled glob pattern; here every pattern comes from the repository's own lint
+configuration and package.json. Review by the end date, or earlier when the dependents allow minimatch 11.
+"""
