@@ -19,7 +19,7 @@ RUN npm run build && npm pack --ignore-scripts --pack-destination /tmp
 
 # Docker Compose built from source with the current Go release and dependency fixes: the published binaries and the
 # Alpine package carry known vulnerabilities. Cross-compiled on the build platform, so arm64 builds fast.
-FROM --platform=$BUILDPLATFORM golang:1.27.2-alpine3.24@sha256:f92b6ef800e499660581efdabdf25d9d817a9d124eaf900924f0504e7e27e12d AS compose
+FROM --platform=$BUILDPLATFORM golang:1.27.4-alpine3.24@sha256:70bd7ddea8b6cbe5d6943cde279d6b67feb10cc924fb9100d1d8757c1575b280 AS compose
 ARG TARGETOS
 ARG TARGETARCH
 ENV CGO_ENABLED=0 GOFLAGS=-trimpath GOTOOLCHAIN=local
@@ -33,7 +33,7 @@ RUN version="$(go list -m -f '{{.Version}}' github.com/docker/compose/v5)" \
       -o /out/docker-compose github.com/docker/compose/v5/cmd
 
 # The Docker CLI from the official image, which is rebuilt with each Go release.
-FROM docker:29.9.0-cli-alpine3.24@sha256:1a4c7cb63513f349bdad01fcc6e0f3f2f67d37b9da86f14dc0d4a0942eecda00 AS docker-cli
+FROM docker:29.10.0-cli-alpine3.24@sha256:34507eb5069d8be82c95dd3b6987d4250fd5fee49b82e2509b7d7a7030740d6d AS docker-cli
 
 FROM node:24-alpine3.24@sha256:44fce696f38ba8c987c4db89954051000bbd05ffd8d8659ba15ed4a8602e937f
 LABEL org.opencontainers.image.source="https://github.com/VectoDE/Self-Updater" \

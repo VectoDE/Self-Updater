@@ -97,5 +97,8 @@
     "typescript-7": "npm:typescript@7.0.2",
     "typescript-eslint": "8.71.1",
     "vitest": "5.0.4"
+  },
+  "overrides": {
+    "minimatch": "^11.0.9"
   }
 }
