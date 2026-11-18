@@ -9,7 +9,7 @@
 # --group-add. See "Run in a container" in the README.
 
 # Base image pinned by digest; Dependabot proposes updates.
-FROM node:24-alpine3.24@sha256:44fce696f38ba8c987c4db89954051000bbd05ffd8d8659ba15ed4a8602e937f AS build
+FROM node:24-alpine3.24@sha256:116b800c3754b440ee0aa3ed2f20f5bf3d99a554bfd9adeea09ea8017f6e85f5 AS build
 WORKDIR /build
 COPY package.json package-lock.json ./
 RUN npm ci --ignore-scripts
@@ -35,7 +35,7 @@ RUN version="$(go list -m -f '{{.Version}}' github.com/docker/compose/v5)" \
 # The Docker CLI from the official image, which is rebuilt with each Go release.
 FROM docker:29.10.0-cli-alpine3.24@sha256:34507eb5069d8be82c95dd3b6987d4250fd5fee49b82e2509b7d7a7030740d6d AS docker-cli
 
-FROM node:24-alpine3.24@sha256:44fce696f38ba8c987c4db89954051000bbd05ffd8d8659ba15ed4a8602e937f
+FROM node:24-alpine3.24@sha256:116b800c3754b440ee0aa3ed2f20f5bf3d99a554bfd9adeea09ea8017f6e85f5
 LABEL org.opencontainers.image.source="https://github.com/VectoDE/Self-Updater" \
       org.opencontainers.image.description="Keeps a server checkout in sync with its Git repository" \
       org.opencontainers.image.licenses="Apache-2.0"
